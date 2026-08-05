@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://revisit.dev/contracts/enrichment/v1.schema.json",
+  "title": "EnrichmentResult",
+  "description": "Versioned contract for the result of enriching a saved link. Produced by the worker, served by the API.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "summary",
+    "key_takeaway",
+    "topics",
+    "suggested_group",
+    "save_intent",
+    "recommended_action",
+    "evidence"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "v1",
+      "description": "Contract version this result conforms to."
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "Short summary of the page content."
+    },
+    "key_takeaway": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "One-line key takeaway."
+    },
+    "topics": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 100 },
+      "minItems": 1,
+      "maxItems": 10,
+      "description": "Topics extracted from the content."
+    },
+    "suggested_group": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Suggested group for organizing the link."
+    },
+    "save_intent": {
+      "enum": ["reference", "read_later", "time_sensitive"],
+      "description": "Why the link was saved."
+    },
+    "recommended_action": {
+      "enum": ["none", "read_soon", "action", "revisit"],
+      "description": "What should happen next."
+    },
+    "revisit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "suggested_date"],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Why the link should come back."
+        },
+        "suggested_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Suggested date (YYYY-MM-DD) for the link to return."
+        }
+      },
+      "description": "Present only when recommended_action is revisit."
+    },
+    "evidence": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["quote", "start_offset", "end_offset"],
+        "properties": {
+          "quote": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Short verbatim quote from the extracted content."
+          },
+          "start_offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Start offset of the quote in the extracted content."
+          },
+          "end_offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "End offset (exclusive) of the quote in the extracted content."
+          }
+        }
+      },
+      "description": "Claims resolved to exact offsets in stored extracted content. May be empty."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "recommended_action": { "const": "revisit" } },
+        "required": ["recommended_action"]
+      },
+      "then": { "required": ["revisit"] },
+      "else": { "not": { "required": ["revisit"] } }
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+schema: spec-driven
+
+context: |
+  Project: Recall
+
+  Product:
+  Users save links with optional context. The system asynchronously reads
+  each page and produces a grounded analysis explaining what the page is,
+  where it belongs, and what the user should do with it.
+
+  MVP scope:
+  - Submit and retrieve saved links through an API.
+  - Process links asynchronously.
+  - Safely fetch and extract public web pages.
+  - Produce structured AI analysis with verified evidence.
+  - Classify follow-up as none, read_soon, action, or revisit.
+  - Provide Swagger UI as the demonstration surface.
+
+  Architecture:
+  - TypeScript Hono API container.
+  - Python enrichment worker container.
+  - PostgreSQL stores business data and enrichment jobs.
+  - Workers claim jobs using FOR UPDATE SKIP LOCKED and a processing lease.
+  - Processing is at least once; persistence must be idempotent.
+  - Docker Compose locally.
+  - Containers plus managed PostgreSQL in the cloud.
+
+  Key invariants:
+  - Link and enrichment job are created in one database transaction.
+  - Retried API submissions do not create duplicate links.
+  - Slow network or LLM operations never run inside a database transaction.
+  - Only one worker may hold a valid job lease at a time.
+  - AI evidence is shown only when it resolves to extracted source text.
+  - User-provided page content is untrusted data.
+
+  Explicitly deferred:
+  - SQS or another message broker.
+  - Embeddings and semantic similarity.
+  - Browser extension and full frontend.
+  - Actual reminder scheduling and delivery.
+  - Multi-user production authentication.
+  - Raw HTML and object storage unless a measured need appears.
+
+  Detailed reference:
+  - docs/build-spec.md
+
+rules:
+  proposal:
+    - State what is explicitly outside the change.
+    - Keep each change small enough for one reviewable pull request.
+    - Explain why new infrastructure is necessary.
+
+  specs:
+    - Describe observable behaviour, not implementation details.
+    - Use Given/When/Then scenarios.
+    - Include failure and retry behaviour where relevant.
+
+  design:
+    - Prefer the simplest solution that satisfies the requirements.
+    - Document delivery guarantees and idempotency assumptions.
+    - Avoid speculative abstractions for deferred architecture.
+
+  tasks:
+    - Order tasks into independently testable increments.
+    - Include tests alongside implementation tasks.
+
+operations:
+  apply:
+    guidance:
+      - Keep the deterministic AI stub as the default test path.
+      - Run focused tests before the complete test suite.
+      - Challenge specs or user questions if needed
+      - No assumptions

@@ -36,10 +36,10 @@
 
 ## 7. CI pipeline
 
-- [ ] 7.1 Add `.github/workflows/ci.yml` with `api` job (Biome check + Vitest) and `worker` job (ruff format check + ruff lint + pytest) on push and PR to `main`
-- [ ] 7.2 Add `stack` job: build images, `docker compose up -d --wait`, assert all services healthy, exercise the stub enricher against a shared fixture inside the worker container, then tear down
-- [ ] 7.3 Push a branch and verify all three jobs pass; verify an intentional lint violation fails CI, then remove it
+- [x] 7.1 Add `.github/workflows/ci.yml` with `api` job (Biome check + Vitest) and `worker` job (ruff format check + ruff lint + pytest) on push and PR to `main`
+- [x] 7.2 Add `stack` job: build images, `docker compose up -d --wait`, assert all services healthy, exercise the stub enricher against a shared fixture inside the worker container, then tear down
+- [x] 7.3 Push a branch and verify all three jobs pass; verify an intentional lint violation fails CI, then remove it (also enabled `noUnusedVariables` — Biome's recommended set alone did not catch it)
 
 ## 8. Documentation
 
-- [ ] 8.1 Update README: project overview, prerequisites, one-command startup, per-workspace format/lint/test commands, and layout map
+- [x] 8.1 Update README: project overview, prerequisites, one-command startup, per-workspace format/lint/test commands, and layout map

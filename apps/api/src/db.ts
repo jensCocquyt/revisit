@@ -15,4 +15,3 @@ export function createDb(databaseUrl: string): Db & { end(): Promise<void> } {
     },
   };
 }
-const unusedForCiCheck = 1;

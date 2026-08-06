@@ -2,12 +2,27 @@
 
 import hashlib
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from datetime import date
+from typing import Any, Literal, Protocol
 
-from worker.contract import CONTRACT_VERSION
+from worker.contract import (
+    CONTRACT_VERSION,
+    EvidenceItem,
+    NonRevisitResult,
+    RevisitResult,
+    RevisitSuggestion,
+)
 
-SAVE_INTENTS = ["reference", "read_later", "time_sensitive"]
-RECOMMENDED_ACTIONS = ["none", "read_soon", "action", "revisit"]
+SAVE_INTENTS: list[Literal["reference", "read_later", "time_sensitive"]] = [
+    "reference",
+    "read_later",
+    "time_sensitive",
+]
+NON_REVISIT_ACTIONS: list[Literal["none", "read_soon", "action"]] = [
+    "none",
+    "read_soon",
+    "action",
+]
 
 
 @dataclass(frozen=True)
@@ -21,7 +36,7 @@ class EnrichmentInput:
 
 @dataclass(frozen=True)
 class EnrichmentOutcome:
-    result: dict[str, Any]
+    result: NonRevisitResult | RevisitResult
     model_id: str
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
@@ -42,30 +57,34 @@ class StubEnricher:
         seed = int(digest[:8], 16)
 
         save_intent = SAVE_INTENTS[seed % len(SAVE_INTENTS)]
-        recommended_action = RECOMMENDED_ACTIONS[(seed // 7) % len(RECOMMENDED_ACTIONS)]
+        action_index = (seed // 7) % 4
 
         quote = request.content[:80].strip() or "empty content"
-        result: dict[str, Any] = {
+        common: dict[str, Any] = {
             "contract_version": CONTRACT_VERSION,
             "summary": f"Deterministic stub summary for content {digest[:12]}.",
             "key_takeaway": f"Stub takeaway derived from content {digest[:12]}.",
             "topics": [f"stub-topic-{digest[:4]}", f"stub-topic-{digest[4:8]}"],
             "suggested_group": f"stub-group-{digest[8:12]}",
             "save_intent": save_intent,
-            "recommended_action": recommended_action,
             "evidence": [
-                {
-                    "quote": quote[:500],
-                    "start_offset": 0,
-                    "end_offset": len(quote[:500]),
-                }
+                EvidenceItem(quote=quote[:500], start_offset=0, end_offset=len(quote[:500]))
             ],
         }
-        if recommended_action == "revisit":
-            result["revisit"] = {
-                "reason": f"Stub revisit reason derived from content {digest[:12]}.",
-                "suggested_date": "2030-01-01",
-            }
+        result: NonRevisitResult | RevisitResult
+        if action_index == 3:
+            result = RevisitResult(
+                **common,
+                recommended_action="revisit",
+                revisit=RevisitSuggestion(
+                    reason=f"Stub revisit reason derived from content {digest[:12]}.",
+                    suggested_date=date(2030, 1, 1),
+                ),
+            )
+        else:
+            result = NonRevisitResult(
+                **common, recommended_action=NON_REVISIT_ACTIONS[action_index]
+            )
         return EnrichmentOutcome(result=result, model_id=self.model_id)
 
 

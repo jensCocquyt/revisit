@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from worker.contract import SCHEMA_PATH, is_valid, validation_errors
+from worker.contract import is_valid, validation_errors
 
-FIXTURES_DIR = SCHEMA_PATH.parent / "fixtures"
+FIXTURES_DIR = Path(__file__).resolve().parents[3] / "contracts" / "enrichment" / "fixtures"
 
 
 def _load(path: Path) -> dict:

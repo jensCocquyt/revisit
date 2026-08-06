@@ -53,16 +53,8 @@ jobs:
       - name: Stub enricher produces a contract-valid result in the container
         run: |
           docker compose exec -T worker uv run --no-sync python - <<'EOF'
-          import json
-          import pathlib
-
           from worker.contract import validation_errors
           from worker.enricher import EnrichmentInput, StubEnricher
-
-          fixture = json.loads(
-              pathlib.Path("/app/contracts/enrichment/fixtures/valid-revisit.json").read_text()
-          )
-          assert validation_errors(fixture) == [], "shared fixture must be contract-valid"
 
           outcome = StubEnricher().enrich(EnrichmentInput(content="CI smoke content"))
           errors = validation_errors(outcome.result)

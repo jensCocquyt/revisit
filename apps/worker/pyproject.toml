@@ -4,8 +4,8 @@ version = "0.1.0"
 description = "Revisit enrichment worker"
 requires-python = ">=3.12"
 dependencies = [
-    "jsonschema>=4.23",
     "psycopg[binary]>=3.2",
+    "pydantic>=2.9",
 ]
 
 [dependency-groups]

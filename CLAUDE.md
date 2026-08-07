@@ -70,7 +70,7 @@ The `contracts/` directory is **test-time only**: runtime images don't contain i
 
 ### AI seam
 
-`worker/enricher.py` defines the `Enricher` protocol; `StubEnricher` derives a deterministic contract-valid result from a SHA-256 of `(content, note, goal)` — same input, identical output, no network. It returns pydantic model instances (`NonRevisitResult | RevisitResult`), not dicts. Selected by `ENRICHER` env var, default `stub`. Keep the stub as the default test path; real models go behind this same protocol.
+`worker/enricher.py` defines the seam: `Enricher` (an abstract base class — the owner prefers ABCs over `Protocol` for explicitness), the `EnrichmentInput`/`EnrichmentOutcome` dataclasses, and the `get_enricher` factory. Implementations live in their own modules: `worker/stub.py` holds `StubEnricher`, which derives a deterministic contract-valid result from a SHA-256 of `(content, note, goal)` — same input, identical output, no network — returning pydantic model instances, not dicts. Selected by `ENRICHER` env var, default `stub`. Keep the stub as the default test path; real models subclass `Enricher` in their own module. `worker/smoke.py` (`python -m worker.smoke`) is the in-container contract smoke check CI runs.
 
 ### Database
 

@@ -9,7 +9,7 @@ A TypeScript API and a Python enrichment worker share one PostgreSQL database. L
 ```text
 apps/api/          TypeScript Hono API
 apps/worker/       Python enrichment worker
-contracts/         versioned enrichment result contract + shared fixtures
+contracts/         shared contract fixtures (cross-language conformance suite)
 db/migrations/     plain SQL migrations (dbmate)
 docker-compose.yml local development stack
 ```
@@ -17,7 +17,7 @@ docker-compose.yml local development stack
 ## Prerequisites
 
 - Docker (with Compose v2)
-- Node.js 18+ and npm (API development)
+- Node.js 24 and npm (API development — matches CI and Docker)
 - [uv](https://docs.astral.sh/uv/) (worker development)
 
 ## Run the stack
@@ -60,7 +60,7 @@ docker run --rm --network host -v ./db:/db -e DATABASE_URL ghcr.io/amacneil/dbma
 
 ## Enrichment contract
 
-`contracts/enrichment/v1.schema.json` is the single source of truth for the enrichment result shape. The worker validates results it produces (Python `jsonschema`); the API validates results it serves (Ajv). Shared fixtures in `contracts/enrichment/fixtures/` feed unit tests on both sides and the CI smoke test.
+The enrichment result contract is defined natively in each language: a Zod schema in `apps/api/src/contract.ts` and pydantic models in `apps/worker/worker/contract.py`. The worker validates results it produces; the API validates results it serves. The shared fixtures in `contracts/enrichment/fixtures/` are the cross-language conformance suite — both test suites glob them and assert the verdict encoded in the filename (`valid-*` accepted, `invalid-*` rejected). Changing a contract rule means changing both definitions and the boundary fixtures in the same commit.
 
 ## CI
 

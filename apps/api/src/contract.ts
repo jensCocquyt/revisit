@@ -2,13 +2,22 @@ import { z } from "zod";
 
 export const CONTRACT_VERSION = "v1";
 
-const evidenceItem = z.strictObject({
-  quote: z.string().min(1).max(500),
-  start_offset: z.number().int().min(0),
-  end_offset: z.number().int().min(0),
-});
+// Names mirror the worker's pydantic models in apps/worker/worker/contract.py:
+// EvidenceItem, RevisitSuggestion, NonRevisitResult, RevisitResult, EnrichmentResult.
+// Keep them in sync when the contract changes.
 
-const revisitSuggestion = z.strictObject({
+const evidenceItemSchema = z
+  .strictObject({
+    quote: z.string().min(1).max(500),
+    start_offset: z.number().int().min(0),
+    end_offset: z.number().int().min(0),
+  })
+  .refine((item) => item.end_offset >= item.start_offset, {
+    message: "end_offset must be >= start_offset",
+    path: ["end_offset"],
+  });
+
+const revisitSuggestionSchema = z.strictObject({
   reason: z.string().min(1).max(500),
   suggested_date: z.iso.date(),
 });
@@ -20,22 +29,31 @@ const baseShape = {
   topics: z.array(z.string().min(1).max(100)).min(1).max(10),
   suggested_group: z.string().min(1).max(100),
   save_intent: z.enum(["reference", "read_later", "time_sensitive"]),
-  evidence: z.array(evidenceItem).max(10),
+  evidence: z.array(evidenceItemSchema).max(10),
 };
 
-// The revisit invariant is structural: only the `revisit` variant carries the
-// revisit suggestion, and strict objects reject it everywhere else.
+const nonRevisitResultSchema = z.strictObject({
+  ...baseShape,
+  recommended_action: z.enum(["none", "read_soon", "action"]),
+});
+
+// The revisit invariant is structural: only this variant carries the revisit
+// suggestion, and strict objects reject it everywhere else.
+const revisitResultSchema = z.strictObject({
+  ...baseShape,
+  recommended_action: z.literal("revisit"),
+  revisit: revisitSuggestionSchema,
+});
+
 export const enrichmentResultSchema = z.discriminatedUnion("recommended_action", [
-  z.strictObject({ ...baseShape, recommended_action: z.literal("none") }),
-  z.strictObject({ ...baseShape, recommended_action: z.literal("read_soon") }),
-  z.strictObject({ ...baseShape, recommended_action: z.literal("action") }),
-  z.strictObject({
-    ...baseShape,
-    recommended_action: z.literal("revisit"),
-    revisit: revisitSuggestion,
-  }),
+  nonRevisitResultSchema,
+  revisitResultSchema,
 ]);
 
+export type EvidenceItem = z.infer<typeof evidenceItemSchema>;
+export type RevisitSuggestion = z.infer<typeof revisitSuggestionSchema>;
+export type NonRevisitResult = z.infer<typeof nonRevisitResultSchema>;
+export type RevisitResult = z.infer<typeof revisitResultSchema>;
 export type EnrichmentResult = z.infer<typeof enrichmentResultSchema>;
 
 export interface ContractValidation {

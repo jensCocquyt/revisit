@@ -11,7 +11,15 @@ from datetime import date
 from functools import lru_cache
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapter, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    TypeAdapter,
+    ValidationError,
+    model_validator,
+)
 
 CONTRACT_VERSION = "v1"
 
@@ -24,6 +32,12 @@ class EvidenceItem(_StrictModel):
     quote: Annotated[str, StringConstraints(min_length=1, max_length=500)]
     start_offset: Annotated[int, Field(ge=0)]
     end_offset: Annotated[int, Field(ge=0)]
+
+    @model_validator(mode="after")
+    def _offsets_ordered(self) -> "EvidenceItem":
+        if self.end_offset < self.start_offset:
+            raise ValueError("end_offset must be >= start_offset")
+        return self
 
 
 class RevisitSuggestion(_StrictModel):

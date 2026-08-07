@@ -1,3 +1,11 @@
+// The enrichment contract is deliberately defined twice: as a Zod schema here
+// and as pydantic models in the worker (apps/worker/worker/contract.py).
+// Nothing ties the two definitions together at compile time, so these fixtures
+// are the contract: both test suites glob the same directory and assert the
+// verdict encoded in the filename (valid-* accepted, invalid-* rejected).
+// If the definitions ever disagree on a rule a fixture exercises, one side's
+// suite fails. When changing a constraint, change both definitions and add
+// the boundary fixtures in the same commit.
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";

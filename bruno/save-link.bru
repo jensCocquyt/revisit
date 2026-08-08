@@ -1,0 +1,38 @@
+meta {
+  name: Save link
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/links
+  body: json
+  auth: none
+}
+
+headers {
+  Idempotency-Key: {{idempotencyKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "url": "https://example.com/article",
+    "note": "Why I saved this",
+    "goal": "interview preparation"
+  }
+}
+
+vars:post-response {
+  linkId: res.body.id
+}
+
+docs {
+  Creates a link with status `pending` and queues exactly one enrichment job
+  in the same transaction. Returns 201 on first submission.
+
+  Re-running with the same Idempotency-Key and identical body replays the
+  original link as 200 without creating rows. The same key with a different
+  body returns 409. Change `idempotencyKey` in the environment to create a
+  fresh link. The response id is captured as {{linkId}} for "Get link".
+}

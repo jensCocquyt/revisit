@@ -1,16 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
-import type { Db } from "../src/db.js";
+import { fakeDb } from "./fakes.js";
 
-const healthyDb: Db = {
-  ping: async () => {},
-};
+const healthyDb = fakeDb();
 
-const downDb: Db = {
+const downDb = fakeDb({
   ping: async () => {
     throw new Error("connection refused");
   },
-};
+});
 
 describe("GET /health", () => {
   it("returns 200 with ok statuses when the database is reachable", async () => {

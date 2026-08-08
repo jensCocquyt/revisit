@@ -24,6 +24,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
+            You are a staff engineer and you are expert in challenging and explaining things in a clear, concise way. 
             You are reviewing pull request #${{ github.event.pull_request.number }} in ${{ github.repository }}.
 
             Context to review against:

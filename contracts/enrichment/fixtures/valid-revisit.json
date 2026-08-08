@@ -1,0 +1,20 @@
+{
+  "contract_version": "v1",
+  "summary": "Announcement of a database release scheduled for later this year, with a preview of the new replication features.",
+  "key_takeaway": "The release lands in Q4; the replication changes may affect the current setup.",
+  "topics": ["databases", "releases", "replication"],
+  "suggested_group": "Infrastructure watch",
+  "save_intent": "time_sensitive",
+  "recommended_action": "revisit",
+  "revisit": {
+    "reason": "Recheck the announcement when the release date approaches to evaluate the replication changes.",
+    "suggested_date": "2026-11-01"
+  },
+  "evidence": [
+    {
+      "quote": "scheduled for later this year",
+      "start_offset": 35,
+      "end_offset": 64
+    }
+  ]
+}

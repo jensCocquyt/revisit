@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Revisit: save a link, get a grounded analysis of what it is, why it matters, and what should happen next (`none` / `read_soon` / `action` / `revisit`). A TypeScript Hono API and a Python enrichment worker share one PostgreSQL database; the `enrichment_jobs` table *is* the queue (no broker). Full MVP 1 specification: `docs/build-spec.md`.
 
-**Only PR 1 (foundation) is built.** The build spec describes the whole MVP; the code currently has: `GET /health` and nothing else on the API, an idle heartbeat loop in `worker/__main__.py` with no job claiming, `StubEnricher` as the only enricher, and migrated tables that no code reads or writes yet. Do not assume `POST /links`, fetching, extraction, or Bedrock exist.
+**Built so far: foundation plus link capture.** The API serves `GET /health`, `POST /links` (validated, idempotent via the `Idempotency-Key` header, creating the link and exactly one enrichment job in a single transaction), `GET /links/:id`, plus `/openapi.json` and Swagger UI at `/docs`. The worker is still an idle heartbeat loop in `worker/__main__.py` with no job claiming; `StubEnricher` is the only enricher. Do not assume worker polling, fetching, extraction, or Bedrock exist — jobs are created but nothing consumes them yet.
 
 ## Commands
 
@@ -20,9 +20,16 @@ npm run dev                            # tsx watch
 npm run build                          # tsc -> dist/
 npm run format                         # Biome, writes fixes
 npm run lint                           # biome ci . — check only, fails on unformatted code
-npm test                               # vitest run
+npm test                               # vitest run — needs DATABASE_URL, see below
 npm test -- test/contract.test.ts      # single file
 npm test -- -t "accepts valid-none"    # single test by name
+```
+
+`npm test` includes integration tests against real PostgreSQL (`*.int.test.ts`); they fail loudly if `DATABASE_URL` is unset. Start the database first:
+
+```bash
+docker compose up -d postgres migrate
+DATABASE_URL='postgres://revisit:revisit@localhost:5432/revisit?sslmode=disable' npm test
 ```
 
 Worker (`apps/worker`, Python 3.12 + uv):
@@ -89,7 +96,7 @@ Two uniqueness rules encode the correctness model: `enrichments (link_id, conten
 
 ## Process: OpenSpec
 
-This project is spec-driven via OpenSpec (`openspec/config.yaml`, skills under `.claude/skills/`, commands under `.claude/commands/opsx/`). Work is proposed as a change under `openspec/changes/<change-id>/` containing `proposal.md`, `design.md`, `tasks.md`, and `specs/<capability>/spec.md` (Given/When/Then, `## ADDED Requirements`). Archiving moves the change to `openspec/changes/archive/YYYY-MM-DD-<change-id>/` and prompts to sync its delta specs into `openspec/specs/<capability>/spec.md` (the durable specs). Both directories are empty today because `project-foundation` is complete but not yet archived.
+This project is spec-driven via OpenSpec (`openspec/config.yaml`, skills under `.claude/skills/`, commands under `.claude/commands/opsx/`). Work is proposed as a change under `openspec/changes/<change-id>/` containing `proposal.md`, `design.md`, `tasks.md`, and `specs/<capability>/spec.md` (Given/When/Then, `## ADDED Requirements`). Archiving moves the change to `openspec/changes/archive/YYYY-MM-DD-<change-id>/` and prompts to sync its delta specs into `openspec/specs/<capability>/spec.md` (the durable specs).
 
 Authoring rules the config enforces: keep each change small enough for one reviewable PR; state what is explicitly out of scope; specs describe observable behavior including failure/retry; prefer the simplest solution and avoid speculative abstractions for deferred architecture; order tasks into independently testable increments with tests alongside implementation. When applying a change: keep the stub as the default test path, run focused tests before the full suite, challenge specs rather than assume.
 
@@ -101,4 +108,5 @@ The build spec's scope rule applies to code review too: build only what MVP 1 us
 - Ruff for the worker: 100-col lines, `E,F,W,I,UP,B,SIM`.
 - TypeScript is `strict` with `module: NodeNext` — relative imports need the `.js` extension even in `.ts` source.
 - Logs are single-line JSON on both sides.
-- CI (`.github/workflows/ci.yml`) runs three jobs on every push: `api`, `worker`, and `stack` (full Compose stack must reach healthy and the stub must produce a contract-valid result inside the container).
+- CI (`.github/workflows/ci.yml`) runs three jobs on every push: `api` (with a PostgreSQL service container for integration tests), `worker`, and `stack` (full Compose stack must reach healthy and the stub must produce a contract-valid result inside the container).
+- **The Bruno collection at `bruno/` tracks the API.** It is the manual testing surface (import into Bruno, or `npx @usebruno/cli run --env local` from `bruno/`). Any change that adds, removes, or reshapes an endpoint must update `bruno/` in the same commit — `apps/api/test/bruno.test.ts` asserts two-way equality between the collection's requests and the OpenAPI document's routes, so drift fails CI.

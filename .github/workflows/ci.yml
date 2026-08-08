@@ -15,6 +15,22 @@ jobs:
     defaults:
       run:
         working-directory: apps/api
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: revisit
+          POSTGRES_PASSWORD: revisit
+          POSTGRES_DB: revisit
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U revisit -d revisit"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgres://revisit:revisit@localhost:5432/revisit?sslmode=disable
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,10 +38,15 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
+      - name: Apply migrations
+        working-directory: ${{ github.workspace }}
+        run: >-
+          docker run --rm --network host -v "$PWD/db:/db" -e DATABASE_URL
+          ghcr.io/amacneil/dbmate:2 --no-dump-schema up
       - run: npm ci
       - name: Format and lint (Biome)
         run: npm run lint
-      - name: Unit tests
+      - name: Unit and integration tests
         run: npm test
 
   worker:

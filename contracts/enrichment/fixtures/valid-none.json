@@ -1,0 +1,16 @@
+{
+  "contract_version": "v1",
+  "summary": "Official documentation for a stable web framework, covering routing, middleware, and deployment.",
+  "key_takeaway": "Reference documentation worth keeping for future lookup; no follow-up needed.",
+  "topics": ["web-frameworks", "documentation"],
+  "suggested_group": "Engineering reference",
+  "save_intent": "reference",
+  "recommended_action": "none",
+  "evidence": [
+    {
+      "quote": "covers routing, middleware, and deployment",
+      "start_offset": 42,
+      "end_offset": 84
+    }
+  ]
+}

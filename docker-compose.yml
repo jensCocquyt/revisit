@@ -1,0 +1,79 @@
+name: revisit
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-revisit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-revisit}
+      POSTGRES_DB: ${POSTGRES_DB:-revisit}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-revisit} -d ${POSTGRES_DB:-revisit}"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  migrate:
+    image: ghcr.io/amacneil/dbmate:2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-revisit}:${POSTGRES_PASSWORD:-revisit}@postgres:5432/${POSTGRES_DB:-revisit}?sslmode=disable
+    volumes:
+      - ./db:/db:ro
+    command: --no-dump-schema up
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-revisit}:${POSTGRES_PASSWORD:-revisit}@postgres:5432/${POSTGRES_DB:-revisit}?sslmode=disable
+      API_PORT: "3000"
+    ports:
+      - "${API_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-revisit}:${POSTGRES_PASSWORD:-revisit}@postgres:5432/${POSTGRES_DB:-revisit}?sslmode=disable
+      ENRICHER: ${ENRICHER:-stub}
+      WORKER_HEARTBEAT_SECONDS: ${WORKER_HEARTBEAT_SECONDS:-30}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "uv", "run", "--no-sync", "python", "-m", "worker.healthcheck"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  pgdata:

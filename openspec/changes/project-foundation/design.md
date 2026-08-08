@@ -45,7 +45,9 @@ Alternatives: Zod as truth + codegen to Python (codegen pipeline for one schema 
 
 ### 4. AI seam: minimal Python interface, stub as default
 
-The worker defines an `Enricher` protocol with one method: extracted content + user context in, contract-valid enrichment result out. `StubEnricher` is the default implementation: deterministic output derived from the content hash (same input → identical result), schema-valid, zero network. Selection via `ENRICHER=stub` env var. No Bedrock client, no retry wrapper, no provider registry — the seam is one interface and one env var; the real implementation arrives in the enrichment change.
+> **Amended in PR #1 review:** the seam is implemented as an `abc.ABC` with explicit subclassing rather than a `typing.Protocol` — the owner prefers explicit inheritance (see `tasks/lessons.md`). `StubEnricher` lives in its own module (`worker/stub.py`).
+
+The worker defines an `Enricher` interface with one method: extracted content + user context in, contract-valid enrichment result out. `StubEnricher` is the default implementation: deterministic output derived from the content hash (same input → identical result), schema-valid, zero network. Selection via `ENRICHER=stub` env var. No Bedrock client, no retry wrapper, no provider registry — the seam is one interface and one env var; the real implementation arrives in the enrichment change.
 
 ### 5. Health checks: HTTP for the API, command probe for the worker
 

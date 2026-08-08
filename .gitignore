@@ -1,1 +1,16 @@
 .claude/settings.local.json
+
+# Environment
+.env
+
+# Node
+node_modules/
+dist/
+coverage/
+
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/

@@ -1,0 +1,10 @@
+{
+  "contract_version": "v1",
+  "summary": "A long-form article on incident review practices with concrete examples from several engineering teams.",
+  "key_takeaway": "Useful background reading before the next retrospective; not urgent.",
+  "topics": ["incident-response", "engineering-culture"],
+  "suggested_group": "Reading list",
+  "save_intent": "read_later",
+  "recommended_action": "read_soon",
+  "evidence": []
+}

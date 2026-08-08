@@ -1,0 +1,10 @@
+{
+  "contract_version": "v1",
+  "summary": "A result with an unknown save intent value must be rejected.",
+  "key_takeaway": "Unknown enum values are contract violations.",
+  "topics": ["validation"],
+  "suggested_group": "Testing",
+  "save_intent": "someday_maybe",
+  "recommended_action": "none",
+  "evidence": []
+}

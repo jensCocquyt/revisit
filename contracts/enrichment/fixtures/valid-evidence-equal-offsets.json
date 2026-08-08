@@ -1,0 +1,10 @@
+{
+  "contract_version": "v1",
+  "summary": "An evidence range with equal offsets is structurally allowed; resolution decides its fate.",
+  "key_takeaway": "Offset ordering is the structural rule; exact quote resolution happens later.",
+  "topics": ["validation"],
+  "suggested_group": "Testing",
+  "save_intent": "reference",
+  "recommended_action": "none",
+  "evidence": [{ "quote": "quoted", "start_offset": 7, "end_offset": 7 }]
+}

@@ -1,0 +1,15 @@
+{
+  "contract_version": "v1",
+  "summary": "A baseline valid enrichment result used for boundary fixtures.",
+  "key_takeaway": "Baseline takeaway.",
+  "topics": [
+    "testing"
+  ],
+  "suggested_group": "Testing",
+  "save_intent": "time_sensitive",
+  "recommended_action": "revisit",
+  "evidence": [],
+  "revisit": {
+    "reason": "Missing the suggested date."
+  }
+}

@@ -5,10 +5,8 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { fakeDb } from "./fakes.js";
 
-// The Bruno collection at <repo>/bruno is the manual testing surface for the
-// API. This test keeps it honest: every documented route must have a request
-// in the collection and every request must target a documented route, so
-// endpoint drift in either direction fails CI.
+// Two-way sync between <repo>/bruno and the OpenAPI document: endpoint drift
+// in either direction fails CI.
 
 const brunoDir = fileURLToPath(new URL("../../../bruno", import.meta.url));
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete", "head", "options"] as const;

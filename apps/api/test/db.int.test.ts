@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Db, IdempotencyKeyConflictError, createDb } from "../src/db.js";
+import { type Db, IdempotencyKeyConflictError, createDb } from "../src/db/index.js";
 import {
   countRows,
   integrationDatabaseUrl,

@@ -1,4 +1,4 @@
-import type { Db } from "../src/db.js";
+import type { Db } from "../src/db/index.js";
 
 export function fakeDb(overrides: Partial<Db> = {}): Db {
   return {

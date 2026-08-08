@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 
-// Integration tests require a migrated PostgreSQL. They fail loudly rather
-// than skip silently, so a missing database can never look like a green run.
+// Fails loudly when unset — a missing database must never look like a green run.
 export function integrationDatabaseUrl(): string {
   const url = process.env.DATABASE_URL;
   if (!url) {
@@ -25,8 +24,7 @@ export interface RowCounts {
   keys: number;
 }
 
-// Row counts scoped to one submission (by its unique url and idempotency
-// key), so parallel tests sharing the database cannot interfere.
+// Scoped to one submission's unique url/key, so parallel tests cannot interfere.
 export async function countRows(
   pool: pg.Pool,
   scope: { url: string; key: string },
@@ -43,7 +41,6 @@ export async function countRows(
   return { links: links.rows[0].n, jobs: jobs.rows[0].n, keys: keys.rows[0].n };
 }
 
-// Unique per-test values so tests never collide on shared tables.
 export function uniqueSubmission(label: string): { url: string; key: string } {
   const id = randomUUID();
   return { url: `https://example.com/${label}/${id}`, key: `test-${label}-${id}` };

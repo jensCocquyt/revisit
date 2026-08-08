@@ -39,6 +39,8 @@ dbmate is a single binary, SQL-first, language-neutral, and runs as a short-live
 
 ### 3. Contract source of truth: JSON Schema, validated natively in both languages
 
+> **Superseded by the `contract-native-types` change (same PR):** the shared JSON Schema was replaced with native definitions — a Zod schema in the API and pydantic models in the worker — with the shared fixtures as the cross-language conformance suite. See `openspec/changes/contract-native-types/` for the decision record. The section below is kept as the original rationale.
+
 Alternatives: Zod as truth + codegen to Python (codegen pipeline for one schema is overkill); duplicate Zod + Pydantic definitions kept in sync by convention (drift is silent).
 
 `contracts/enrichment/v1.schema.json` is the single source. Validation happens at the boundaries: the worker validates results it produces (Python `jsonschema`) and the API validates enrichments it serves (Ajv). A small set of shared fixtures in `contracts/enrichment/fixtures/` serves as examples, feeds unit tests on each side, and backs the Compose smoke test. Full cross-language conformance testing (every fixture asserted identically in both languages) is deferred until contract complexity justifies it. The contract carries a `contract_version` field; the filename carries the version.

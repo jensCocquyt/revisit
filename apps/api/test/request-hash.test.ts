@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { requestHash } from "../src/request-hash.js";
+import { requestHash } from "../src/utils/request-hash.js";
 
 describe("requestHash", () => {
   const base = { url: "https://example.com/a", note: null, goal: null };

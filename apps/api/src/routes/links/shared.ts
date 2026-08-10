@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import type { LinkRow } from "../db/index.js";
+import type { LinkRow } from "../../db/index.js";
 
 export const linkResponseSchema = z
   .object({
@@ -11,18 +11,6 @@ export const linkResponseSchema = z
     created_at: z.string(),
   })
   .openapi("Link");
-
-export const errorResponseSchema = z
-  .object({
-    error: z.string(),
-    details: z.unknown().optional(),
-  })
-  .openapi("Error");
-
-export const jsonError = (description: string) => ({
-  description,
-  content: { "application/json": { schema: errorResponseSchema } },
-});
 
 export function toLinkResponse(link: LinkRow) {
   return {

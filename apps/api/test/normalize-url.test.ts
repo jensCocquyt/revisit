@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeUrl } from "../src/normalize-url.js";
+import { normalizeUrl } from "../src/utils/normalize-url.js";
 
 describe("normalizeUrl", () => {
   it("lowercases scheme and host", () => {

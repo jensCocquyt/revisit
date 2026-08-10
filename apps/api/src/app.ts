@@ -1,9 +1,9 @@
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Db } from "./db/index.js";
-import { registerGetLinkRoute } from "./routes/get-link.js";
-import { registerHealthRoute } from "./routes/health.js";
-import { registerSaveLinkRoute } from "./routes/save-link.js";
+import { registerHealthRoute } from "./routes/health/get-health.js";
+import { registerGetLinkRoute } from "./routes/links/get-link.js";
+import { registerSaveLinkRoute } from "./routes/links/save-link.js";
 
 export function createApp(db: Db): OpenAPIHono {
   const app = new OpenAPIHono({

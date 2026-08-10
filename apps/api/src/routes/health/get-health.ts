@@ -1,5 +1,5 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import type { Db } from "../db/index.js";
+import type { Db } from "../../db/index.js";
 
 const healthResponseSchema = z
   .object({ status: z.string(), db: z.string() })

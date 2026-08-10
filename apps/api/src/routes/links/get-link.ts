@@ -1,6 +1,7 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import type { Db } from "../db/index.js";
-import { jsonError, linkResponseSchema, toLinkResponse } from "./responses.js";
+import type { Db } from "../../db/index.js";
+import { jsonError } from "../shared/responses.js";
+import { linkResponseSchema, toLinkResponse } from "./shared.js";
 
 export const linkIdParamSchema = z.object({
   id: z.uuid().openapi({

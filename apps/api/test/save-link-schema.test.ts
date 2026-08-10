@@ -6,7 +6,7 @@ import {
   URL_MAX,
   idempotencyKeyHeaderSchema,
   saveLinkBodySchema,
-} from "../src/routes/save-link.js";
+} from "../src/routes/links/save-link.js";
 
 const validUrl = "https://example.com/article";
 

@@ -1,8 +1,9 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { type Db, IdempotencyKeyConflictError } from "../db/index.js";
-import { normalizeUrl } from "../normalize-url.js";
-import { requestHash } from "../request-hash.js";
-import { jsonError, linkResponseSchema, toLinkResponse } from "./responses.js";
+import { type Db, IdempotencyKeyConflictError } from "../../db/index.js";
+import { normalizeUrl } from "../../utils/normalize-url.js";
+import { requestHash } from "../../utils/request-hash.js";
+import { jsonError } from "../shared/responses.js";
+import { linkResponseSchema, toLinkResponse } from "./shared.js";
 
 export const URL_MAX = 2048;
 export const NOTE_MAX = 2000;

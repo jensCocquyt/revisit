@@ -5,6 +5,56 @@ import { requestHash } from "../../utils/request-hash.js";
 import { jsonError } from "../shared/responses.js";
 import { linkResponseSchema, toLinkResponse } from "./shared.js";
 
+export function registerSaveLinkRoute(app: OpenAPIHono, db: Db): void {
+  app.openapi(saveLinkRoute, async (c) => {
+    const body = c.req.valid("json");
+    const key = c.req.valid("header")["Idempotency-Key"];
+    const normalized = normalizeUrl(body.url);
+    const hash = requestHash({
+      url: normalized,
+      note: body.note ?? null,
+      goal: body.goal ?? null,
+    });
+
+    const existing = await db.findIdempotencyKey(key);
+    if (existing) {
+      if (existing.requestHash !== hash) {
+        return c.json({ error: "idempotency_key_conflict" }, 409);
+      }
+      const link = await db.getLink(existing.linkId);
+      if (link) {
+        return c.json(toLinkResponse(link), 200);
+      }
+    }
+
+    try {
+      const link = await db.createLinkWithJob({
+        url: body.url,
+        normalizedUrl: normalized,
+        note: body.note ?? null,
+        goal: body.goal ?? null,
+        idempotencyKey: key,
+        requestHash: hash,
+      });
+      return c.json(toLinkResponse(link), 201);
+    } catch (err) {
+      if (err instanceof IdempotencyKeyConflictError) {
+        // Lost a race against an identical concurrent submission: serve the
+        // winner's link, or report the conflict if the request differs.
+        const winner = await db.findIdempotencyKey(key);
+        if (winner && winner.requestHash === hash) {
+          const link = await db.getLink(winner.linkId);
+          if (link) {
+            return c.json(toLinkResponse(link), 200);
+          }
+        }
+        return c.json({ error: "idempotency_key_conflict" }, 409);
+      }
+      throw err;
+    }
+  });
+}
+
 export const URL_MAX = 2048;
 export const NOTE_MAX = 2000;
 export const GOAL_MAX = 200;
@@ -55,56 +105,6 @@ const saveLinkRoute = createRoute({
     500: jsonError("Submission failed; neither link nor job was stored"),
   },
 });
-
-export function registerSaveLinkRoute(app: OpenAPIHono, db: Db): void {
-  app.openapi(saveLinkRoute, async (c) => {
-    const body = c.req.valid("json");
-    const key = c.req.valid("header")["Idempotency-Key"];
-    const normalized = normalizeUrl(body.url);
-    const hash = requestHash({
-      url: normalized,
-      note: body.note ?? null,
-      goal: body.goal ?? null,
-    });
-
-    const existing = await db.findIdempotencyKey(key);
-    if (existing) {
-      if (existing.requestHash !== hash) {
-        return c.json({ error: "idempotency_key_conflict" }, 409);
-      }
-      const link = await db.getLink(existing.linkId);
-      if (link) {
-        return c.json(toLinkResponse(link), 200);
-      }
-    }
-
-    try {
-      const link = await db.createLinkWithJob({
-        url: body.url,
-        normalizedUrl: normalized,
-        note: body.note ?? null,
-        goal: body.goal ?? null,
-        idempotencyKey: key,
-        requestHash: hash,
-      });
-      return c.json(toLinkResponse(link), 201);
-    } catch (err) {
-      if (err instanceof IdempotencyKeyConflictError) {
-        // Lost a race against an identical concurrent submission: serve the
-        // winner's link, or report the conflict if the request differs.
-        const winner = await db.findIdempotencyKey(key);
-        if (winner && winner.requestHash === hash) {
-          const link = await db.getLink(winner.linkId);
-          if (link) {
-            return c.json(toLinkResponse(link), 200);
-          }
-        }
-        return c.json({ error: "idempotency_key_conflict" }, 409);
-      }
-      throw err;
-    }
-  });
-}
 
 function isHttpUrl(value: string): boolean {
   let parsed: URL;

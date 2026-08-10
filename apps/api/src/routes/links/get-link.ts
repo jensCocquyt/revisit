@@ -3,6 +3,17 @@ import type { Db } from "../../db/index.js";
 import { jsonError } from "../shared/responses.js";
 import { linkResponseSchema, toLinkResponse } from "./shared.js";
 
+export function registerGetLinkRoute(app: OpenAPIHono, db: Db): void {
+  app.openapi(getLinkRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const link = await db.getLink(id);
+    if (!link) {
+      return c.json({ error: "link_not_found" }, 404);
+    }
+    return c.json(toLinkResponse(link), 200);
+  });
+}
+
 export const linkIdParamSchema = z.object({
   id: z.uuid().openapi({
     param: { name: "id", in: "path" },
@@ -23,14 +34,3 @@ const getLinkRoute = createRoute({
     404: jsonError("No link with this id"),
   },
 });
-
-export function registerGetLinkRoute(app: OpenAPIHono, db: Db): void {
-  app.openapi(getLinkRoute, async (c) => {
-    const { id } = c.req.valid("param");
-    const link = await db.getLink(id);
-    if (!link) {
-      return c.json({ error: "link_not_found" }, 404);
-    }
-    return c.json(toLinkResponse(link), 200);
-  });
-}

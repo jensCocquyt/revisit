@@ -54,15 +54,36 @@ jobs:
     defaults:
       run:
         working-directory: apps/worker
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: revisit
+          POSTGRES_PASSWORD: revisit
+          POSTGRES_DB: revisit
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U revisit -d revisit"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgres://revisit:revisit@localhost:5432/revisit?sslmode=disable
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+      - name: Apply migrations
+        working-directory: ${{ github.workspace }}
+        run: >-
+          docker run --rm --network host -v "$PWD/db:/db" -e DATABASE_URL
+          ghcr.io/amacneil/dbmate:2 --no-dump-schema up
       - run: uv sync --frozen
       - name: Format check (ruff)
         run: uv run ruff format --check .
       - name: Lint (ruff)
         run: uv run ruff check .
-      - name: Unit tests
+      - name: Unit and integration tests
         run: uv run pytest -q
 
   stack:
@@ -78,6 +99,23 @@ jobs:
         run: curl -fsS http://localhost:3000/health
       - name: Stub enricher produces a contract-valid result in the container
         run: docker compose exec -T worker uv run --no-sync python -m worker.smoke
+      - name: Saved link reaches enriched end to end
+        run: |
+          link_id=$(curl -fsS -X POST http://localhost:3000/links \
+            -H 'content-type: application/json' \
+            -H "Idempotency-Key: ci-stack-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            -d '{"url": "https://example.com/ci-stack-check"}' | jq -re '.id')
+          for _ in $(seq 1 30); do
+            status=$(curl -fsS "http://localhost:3000/links/$link_id" | jq -re '.status')
+            echo "link $link_id status: $status"
+            case "$status" in
+              enriched) exit 0 ;;
+              failed) echo 'link failed instead of enriched' >&2; exit 1 ;;
+            esac
+            sleep 2
+          done
+          echo 'timed out waiting for enriched' >&2
+          exit 1
       - name: Show service status
         if: always()
         run: docker compose ps

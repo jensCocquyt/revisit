@@ -62,7 +62,9 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-revisit}:${POSTGRES_PASSWORD:-revisit}@postgres:5432/${POSTGRES_DB:-revisit}?sslmode=disable
       ENRICHER: ${ENRICHER:-stub}
-      WORKER_HEARTBEAT_SECONDS: ${WORKER_HEARTBEAT_SECONDS:-30}
+      WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-2}
+      WORKER_LEASE_SECONDS: ${WORKER_LEASE_SECONDS:-60}
+      WORKER_MAX_ATTEMPTS: ${WORKER_MAX_ATTEMPTS:-3}
     depends_on:
       postgres:
         condition: service_healthy

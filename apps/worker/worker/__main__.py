@@ -35,15 +35,16 @@ def main() -> None:
             if conn is None or conn.closed:
                 conn = psycopg.connect(database_url(), autocommit=True, connect_timeout=5)
             job = jobs.claim_one(conn, lease_seconds=lease_seconds(), worker_id=me)
+            if job is None:
+                time.sleep(poll_seconds())
+                continue
+            # A connection drop mid-processing abandons the claim; the lease
+            # expires and the job becomes claimable again.
+            jobs.process_one(conn, job, enricher, max_attempts=max_attempts(), worker_id=me)
         except psycopg.OperationalError as exc:
             log.error(json.dumps({"msg": "database unavailable", "error": str(exc)[:300]}))
             conn = None
             time.sleep(poll_seconds())
-            continue
-        if job is None:
-            time.sleep(poll_seconds())
-            continue
-        jobs.process_one(conn, job, enricher, max_attempts=max_attempts(), worker_id=me)
 
 
 if __name__ == "__main__":

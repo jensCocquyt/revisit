@@ -99,3 +99,17 @@ def validation_errors(result: Any) -> list[str]:
 
 def is_valid(result: Any) -> bool:
     return not validation_errors(result)
+
+
+def parse_result(data: Any) -> NonRevisitResult | RevisitResult:
+    """Parse untrusted data into a contract model, raising ValidationError.
+
+    Runs in JSON mode (same semantics as validation_errors) so model output
+    is judged exactly like any other JSON document crossing the contract.
+    """
+    return _adapter().validate_json(json.dumps(data))
+
+
+def result_json_schema() -> dict[str, Any]:
+    """JSON Schema of the result union, for structured-output tool definitions."""
+    return _adapter().json_schema()

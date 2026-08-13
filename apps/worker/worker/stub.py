@@ -27,6 +27,7 @@ NON_REVISIT_ACTIONS: list[Literal["none", "read_soon", "action"]] = [
 
 class StubEnricher(Enricher):
     model_id = "stub"
+    prompt_version = "stub-v1"
 
     def enrich(self, request: EnrichmentInput) -> EnrichmentOutcome:
         digest = hashlib.sha256(

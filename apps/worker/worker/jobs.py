@@ -1,28 +1,34 @@
 """Claiming and processing over the enrichment_jobs queue.
 
-Transaction shape: claim in one short transaction, enrich with no transaction
-open, write back (result + statuses) in one short transaction. Connections
-must be in autocommit mode so statements outside `conn.transaction()` blocks
-do not hold an implicit transaction open during enrichment.
+Transaction shape: claim in one short transaction; fetch, extraction, and
+enrichment run with no transaction open; content-version storage and the
+write-back (result + statuses) each use their own short transaction.
+Connections must be in autocommit mode so statements outside
+`conn.transaction()` blocks do not hold an implicit transaction open during
+slow work.
 """
 
-import hashlib
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import psycopg
 
-from worker.enricher import Enricher, EnrichmentInput, EnrichmentOutcome
+from worker import fetch as fetch_mod
+from worker.content import store_content_version
+from worker.contract import NonRevisitResult, RevisitResult
+from worker.enricher import Enricher, EnricherError, EnrichmentInput, EnrichmentOutcome
+from worker.evidence import resolve_evidence
+from worker.extract import ExtractedContent, extract_content
+from worker.fetch import FetchedPage, FetchTerminalError, FetchTransientError
 
 log = logging.getLogger("worker")
 
-# Identifies the (future) prompt in the enrichments idempotency key; the stub
-# has no prompt, but the value must be stable and change when a real one does.
-PROMPT_VERSION = "stub-v1"
-
 BACKOFF_BASE_SECONDS = 5.0
 BACKOFF_CAP_SECONDS = 60.0
+
+Fetcher = Callable[[str], FetchedPage]
 
 _CLAIM_SQL = """
 UPDATE enrichment_jobs
@@ -72,8 +78,14 @@ def process_one(
     *,
     max_attempts: int,
     worker_id: str,
+    fetcher: Fetcher | None = None,
 ) -> bool:
-    """Enrich a claimed job and write the outcome back. Returns True on success."""
+    """Run the full pipeline for a claimed job. Returns True on success.
+
+    fetch -> extract -> store content version -> enrich -> verify evidence
+    -> persist. `fetcher` is injectable for tests; the default fetches with
+    the guard and limits from the environment.
+    """
     row = conn.execute("SELECT url, note, goal FROM links WHERE id = %s", (job.link_id,)).fetchone()
     if row is None:
         # Should not happen (FK); treat as a failure so the job does not spin hot.
@@ -83,24 +95,56 @@ def process_one(
         return False
     url, note, goal = row
 
-    # Stand-in until real fetching lands: the URL is the content and hashes it.
     try:
-        outcome = enricher.enrich(EnrichmentInput(content=url, note=note, goal=goal))
+        page = (fetcher or fetch_mod.fetch_page)(url)
+        content = extract_content(page.body, page.content_type)
+    except FetchTerminalError as exc:
+        _fail(conn, job, str(exc), max_attempts=max_attempts, worker_id=worker_id, terminal=True)
+        return False
+    except FetchTransientError as exc:
+        _fail(conn, job, str(exc), max_attempts=max_attempts, worker_id=worker_id)
+        return False
+    except Exception as exc:  # noqa: BLE001 - unexpected fetch errors follow the retry policy
+        detail = f"{type(exc).__name__}: {exc}"[:300]
+        _fail(conn, job, f"fetch_error: {detail}", max_attempts=max_attempts, worker_id=worker_id)
+        return False
+
+    content_version_id = store_content_version(conn, job.link_id, content)
+
+    try:
+        outcome = enricher.enrich(EnrichmentInput(content=content.text, note=note, goal=goal))
+    except EnricherError as exc:
+        _fail(conn, job, str(exc), max_attempts=max_attempts, worker_id=worker_id)
+        return False
     except Exception as exc:  # noqa: BLE001 - any enricher error follows the retry policy
         detail = f"{type(exc).__name__}: {exc}"[:300]
         _fail(conn, job, f"enrich_error: {detail}", max_attempts=max_attempts, worker_id=worker_id)
         return False
 
-    content_hash = hashlib.sha256(url.encode("utf-8")).hexdigest()
-    return _complete(conn, job, outcome, content_hash, worker_id=worker_id)
+    result, evidence_dropped = resolve_evidence(outcome.result, content.text)
+    if evidence_dropped:
+        _log_event("evidence dropped", job, evidence_dropped=evidence_dropped)
+    return _complete(
+        conn,
+        job,
+        outcome,
+        result,
+        content,
+        content_version_id,
+        prompt_version=enricher.prompt_version,
+        worker_id=worker_id,
+    )
 
 
 def _complete(
     conn: psycopg.Connection,
     job: ClaimedJob,
     outcome: EnrichmentOutcome,
-    content_hash: str,
+    result: NonRevisitResult | RevisitResult,
+    content: ExtractedContent,
+    content_version_id: str,
     *,
+    prompt_version: str,
     worker_id: str,
 ) -> bool:
     with conn.transaction():
@@ -109,17 +153,20 @@ def _complete(
             """
             INSERT INTO enrichments
               (link_id, content_version_id, content_hash, prompt_version,
-               contract_version, result, model_id)
-            VALUES (%s, NULL, %s, %s, %s, %s::jsonb, %s)
+               contract_version, result, model_id, latency_ms, token_usage)
+            VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s::jsonb)
             ON CONFLICT (link_id, content_hash, prompt_version) DO NOTHING
             """,
             (
                 job.link_id,
-                content_hash,
-                PROMPT_VERSION,
-                outcome.result.contract_version,
-                outcome.result.model_dump_json(),
+                content_version_id,
+                content.content_hash,
+                prompt_version,
+                result.contract_version,
+                result.model_dump_json(),
                 outcome.model_id,
+                outcome.latency_ms,
+                json.dumps(outcome.token_usage) if outcome.token_usage is not None else None,
             ),
         )
         claimed = conn.execute(
@@ -151,8 +198,12 @@ def _fail(
     *,
     max_attempts: int,
     worker_id: str,
+    terminal: bool = False,
 ) -> None:
-    terminal = job.attempts + 1 >= max_attempts
+    # Terminal failures (blocked destination, unsupported content, ...) fail
+    # immediately; transient ones become terminal on the final allowed attempt.
+    terminal = terminal or job.attempts + 1 >= max_attempts
+    last_error = last_error[:300]
     with conn.transaction():
         if terminal:
             claimed = conn.execute(
@@ -188,5 +239,5 @@ def _fail(
         _log_event("job rescheduled", job, last_error=last_error)
 
 
-def _log_event(msg: str, job: ClaimedJob, **extra: str) -> None:
+def _log_event(msg: str, job: ClaimedJob, **extra: str | int) -> None:
     log.info(json.dumps({"msg": msg, "job_id": job.id, "link_id": job.link_id, **extra}))

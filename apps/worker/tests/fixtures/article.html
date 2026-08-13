@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Understanding Database Replication</title>
+  <meta name="author" content="Ada Example">
+  <meta name="description" content="A practical tour of replication strategies.">
+  <script>window.__tracker = { id: "secret-tracker-token" };</script>
+  <style>nav { display: flex; }</style>
+</head>
+<body>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/articles">Articles</a>
+    <a href="/about">About</a>
+  </nav>
+  <article>
+    <h1>Understanding Database Replication</h1>
+    <p>Replication copies data from a primary database to one or more replicas so that
+    reads can scale out and failures can be survived. The fundamental trade-off is
+    between consistency and availability: synchronous replication keeps replicas
+    identical at the cost of write latency, while asynchronous replication accepts a
+    replication lag in exchange for faster writes.</p>
+    <p>Single-leader replication is the most common arrangement. All writes go to the
+    leader, which streams a log of changes to its followers. Followers apply the log
+    in order, which makes them consistent with the leader eventually, and makes
+    failover a matter of promoting the most up-to-date follower.</p>
+    <p>Multi-leader and leaderless designs relax the single point of write in exchange
+    for conflict resolution complexity. Conflict-free replicated data types and
+    last-writer-wins timestamps are two common resolution strategies, each with sharp
+    edges that deserve careful evaluation before adoption.</p>
+  </article>
+  <footer>
+    <p>© 2026 Example Publishing. All rights reserved.</p>
+  </footer>
+  <script src="/assets/analytics.js"></script>
+</body>
+</html>

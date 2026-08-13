@@ -12,8 +12,8 @@ from psycopg.rows import dict_row
 
 from worker.contract import validation_errors
 from worker.enricher import Enricher, EnricherError, EnrichmentInput, EnrichmentOutcome
-from worker.fetch import FetchedPage, FetchLimits, FetchTransientError, fetch_page
 from worker.jobs import backoff_seconds, claim_one, process_one
+from worker.safe_fetch import FetchedPage, FetchLimits, FetchTransientError, fetch_page
 from worker.stub import StubEnricher
 
 WORKER = "test-worker-a"

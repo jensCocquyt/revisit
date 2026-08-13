@@ -10,7 +10,7 @@ from dataclasses import replace
 import httpx
 import pytest
 
-from worker.fetch import (
+from worker.safe_fetch import (
     FetchedPage,
     FetchLimits,
     FetchTerminalError,

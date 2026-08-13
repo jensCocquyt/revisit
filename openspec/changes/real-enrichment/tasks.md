@@ -1,10 +1,10 @@
 ## 1. Failure taxonomy and dependencies
 
 - [x] 1.1 Add `httpx`, `trafilatura`, and `boto3` to `apps/worker/pyproject.toml`; `uv sync`; commit lockfile
-- [x] 1.2 Define `FetchTerminalError(code, detail)` and `FetchTransientError(code, detail)` (in `worker/fetch.py`) with the stable codes from design §1; unit-test `str()` formatting matches the `"code: detail"` `last_error` shape
+- [x] 1.2 Define `FetchTerminalError(code, detail)` and `FetchTransientError(code, detail)` (in `worker/safe_fetch.py`) with the stable codes from design §1; unit-test `str()` formatting matches the `"code: detail"` `last_error` shape
 - [x] 1.3 Extend `_fail` in `worker/jobs.py` with `terminal: bool = False` forcing the immediate job+link `failed` branch regardless of attempts; unit/integration test: terminal failure records `attempts = 1`, no reschedule, link `failed`
 
-## 2. Safe fetching (`worker/fetch.py`)
+## 2. Safe fetching (`worker/safe_fetch.py`)
 
 - [x] 2.1 URL validation + address guard with injectable resolver: scheme allowlist, literal-IP and resolved-address checks via `ipaddress` (loopback, private, link-local, multicast, unspecified, reserved), `FETCH_ALLOWED_HOSTS` exact-match bypass of the address check only
 - [x] 2.2 Offline guard-matrix tests with a fake resolver: metadata IP, private, loopback (v4+v6), multicast, unspecified, public-allowed, allowlisted host, `ftp://`, unparseable URL, DNS failure → transient

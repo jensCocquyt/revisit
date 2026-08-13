@@ -15,13 +15,13 @@ from dataclasses import dataclass
 
 import psycopg
 
-from worker import fetch as fetch_mod
+from worker import safe_fetch
 from worker.content import store_content_version
 from worker.contract import NonRevisitResult, RevisitResult
 from worker.enricher import Enricher, EnricherError, EnrichmentInput, EnrichmentOutcome
 from worker.evidence import resolve_evidence
 from worker.extract import ExtractedContent, extract_content
-from worker.fetch import FetchedPage, FetchTerminalError, FetchTransientError
+from worker.safe_fetch import FetchedPage, FetchTerminalError, FetchTransientError
 
 log = logging.getLogger("worker")
 
@@ -96,7 +96,7 @@ def process_one(
     url, note, goal = row
 
     try:
-        page = (fetcher or fetch_mod.fetch_page)(url)
+        page = (fetcher or safe_fetch.fetch_page)(url)
         content = extract_content(page.body, page.content_type)
     except FetchTerminalError as exc:
         _fail(conn, job, str(exc), max_attempts=max_attempts, worker_id=worker_id, terminal=True)

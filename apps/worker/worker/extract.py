@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 import trafilatura
 
-from worker.fetch import FetchTerminalError
+from worker.safe_fetch import FetchTerminalError
 
 
 @dataclass(frozen=True)

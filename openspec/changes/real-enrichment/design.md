@@ -21,7 +21,7 @@ The worker (`apps/worker/worker/jobs.py`) already claims with `FOR UPDATE SKIP L
 
 ## Decisions
 
-### 1. Fetch pipeline and SSRF guard (`worker/fetch.py`)
+### 1. Fetch pipeline and SSRF guard (`worker/safe_fetch.py`)
 
 New module owning the whole fetch: URL validation, guarded redirect loop, limits. Uses **httpx** (sync client, HTTP/1.1+2, sane timeout API).
 

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from worker.extract import extract_content
-from worker.fetch import FetchTerminalError
+from worker.safe_fetch import FetchTerminalError
 
 FIXTURES = Path(__file__).parent / "fixtures"
 ARTICLE = (FIXTURES / "article.html").read_text(encoding="utf-8")

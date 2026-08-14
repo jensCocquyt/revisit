@@ -69,36 +69,12 @@ def fetch_page(
 
 def validate_url(url: str, limits: FetchLimits, resolver: Resolver | None = None) -> str:
     """Validate scheme and destination addresses for one hop. Returns the host."""
-    resolver = resolver or default_resolver
-    try:
-        parts = urlsplit(url)
-        host = parts.hostname
-    except ValueError as exc:
-        raise FetchTerminalError("invalid_url", str(exc)[:200]) from exc
-    if parts.scheme not in ("http", "https"):
-        raise FetchTerminalError("invalid_url", f"scheme {parts.scheme or '(none)'!r} not allowed")
-    if not host:
-        raise FetchTerminalError("invalid_url", "no hostname")
+    host = _parse_host(url)
     if host in limits.allowed_hosts:
         # Test/CI escape hatch for in-network fixtures: skips only the address
         # check; scheme and all response limits still apply.
         return host
-
-    try:
-        addrs = [ipaddress.ip_address(host.split("%", 1)[0])]
-    except ValueError:
-        try:
-            resolved = resolver(host)
-        except OSError as exc:
-            raise FetchTransientError("fetch_dns_error", f"{host}: {exc}") from exc
-        if not resolved:
-            raise FetchTransientError("fetch_dns_error", f"{host}: no addresses") from None
-        try:
-            addrs = [ipaddress.ip_address(a.split("%", 1)[0]) for a in resolved]
-        except ValueError as exc:
-            raise FetchTransientError("fetch_dns_error", f"{host}: {exc}") from exc
-
-    for addr in addrs:
+    for addr in _resolve_addresses(host, resolver or default_resolver):
         if _is_blocked(addr):
             raise FetchTerminalError("blocked_url", f"{host} resolves to blocked address {addr}")
     return host
@@ -158,6 +134,44 @@ class FetchedPage:
     url: str  # final URL after redirects
     body: str
     content_type: str
+
+
+def _parse_host(url: str) -> str:
+    """Parse one hop's URL and gate scheme and hostname; terminal on any defect."""
+    try:
+        parts = urlsplit(url)
+        host = parts.hostname
+    except ValueError as exc:
+        raise FetchTerminalError("invalid_url", str(exc)[:200]) from exc
+    if parts.scheme not in ("http", "https"):
+        raise FetchTerminalError("invalid_url", f"scheme {parts.scheme or '(none)'!r} not allowed")
+    if not host:
+        raise FetchTerminalError("invalid_url", "no hostname")
+    return host
+
+
+def _resolve_addresses(
+    host: str, resolver: Resolver
+) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+    """Candidate addresses for a host: the literal IP, or every resolved address.
+
+    DNS problems (lookup failure, empty answer, unparseable record) are
+    transient — they heal on retry, unlike the terminal verdicts around them.
+    """
+    try:
+        return [ipaddress.ip_address(host.split("%", 1)[0])]
+    except ValueError:
+        pass  # not a literal IP: resolve it as a name
+    try:
+        resolved = resolver(host)
+    except OSError as exc:
+        raise FetchTransientError("fetch_dns_error", f"{host}: {exc}") from exc
+    if not resolved:
+        raise FetchTransientError("fetch_dns_error", f"{host}: no addresses")
+    try:
+        return [ipaddress.ip_address(a.split("%", 1)[0]) for a in resolved]
+    except ValueError as exc:
+        raise FetchTransientError("fetch_dns_error", f"{host}: {exc}") from exc
 
 
 def _is_blocked(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:

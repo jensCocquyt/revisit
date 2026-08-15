@@ -1,5 +1,10 @@
 """Evidence verification before persistence.
 
+Evidence is what makes the analysis trustworthy: each claim cites a quote at
+an offset in the stored page text, so users can check the model is describing
+the real page and not hallucinating. That only holds if every citation is
+verified before it is stored.
+
 Per item: exact offsets are kept; a verbatim quote at wrong offsets is
 repaired to its first occurrence; a quote absent from the text is dropped,
 never guessed. Every persisted item's slice of the stored text equals its

@@ -1,0 +1,6 @@
+{
+  "expected_save_intent": "reference",
+  "expected_recommended_action": "revisit",
+  "revisit_justified": true,
+  "note": "we integrate their API, watch for breaking changes"
+}

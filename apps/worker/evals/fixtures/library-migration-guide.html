@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head><title>Migrating from Fastify 4 to 5: the complete checklist</title></head>
+<body>
+<article>
+<h1>Migrating from Fastify 4 to 5: the complete checklist</h1>
+<p>Fastify 5 is out, version 4 enters security-fixes-only maintenance at the end of the
+year, and the migration is mostly mechanical — but "mostly" is doing some work in that
+sentence. This guide walks the full checklist we used to migrate forty services, in the
+order that avoids broken intermediate states.</p>
+<p>Start with the runtime floor: Fastify 5 requires Node 20 or later, so upgrade your base
+images and CI matrices first, while still on version 4. Nothing else in the migration is
+safe to attempt until this lands, and it is the only step that needs coordination with
+infrastructure teams.</p>
+<p>The breaking changes that bite in practice: the deprecated request.routerPath and
+request.routerMethod are gone (use request.routeOptions), the default JSON schema
+validator now rejects unknown string formats instead of ignoring them, and plugins
+registered without an await no longer guarantee registration order. That last one is the
+sneaky one — codebases that accidentally relied on synchronous registration order pass
+review and fail in production under load.</p>
+<p>Ecosystem plugins moved in lockstep: every @fastify/* plugin has a major release with
+the same support window. Pin the new majors together in one commit; mixing plugin majors
+across Fastify majors is explicitly unsupported and the failure mode is a silent no-op
+hook.</p>
+<p>Budget roughly a day per service for the mechanical work, plus a soak day for anything
+handling more than a thousand requests per second. The full changelog is linked at the
+bottom; this checklist covers the changes that actually broke things for us.</p>
+</article>
+</body>
+</html>

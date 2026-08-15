@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head><title>Build a query engine from scratch, part 1: parsing SQL</title></head>
+<body>
+<article>
+<h1>Build a query engine from scratch, part 1: parsing SQL</h1>
+<p>This is the first post in a planned six-part series where we build a small but real
+query engine in about three thousand lines of code: parser, planner, optimizer, and a
+vectorized executor. By the end of the series it will run a usable subset of SQL over
+Parquet files at respectable speed. Parts are published as they are written — subscribe or
+check back, part 2 is currently in draft.</p>
+<p>Today we handle parsing. A SQL parser has a reputation for being a swamp, and the
+reputation is earned if you aim for the whole standard. We aim for a subset: SELECT with
+projections and aliases, FROM with joins, WHERE, GROUP BY, ORDER BY, and LIMIT. That
+subset covers a startling fraction of real analytical queries and keeps the grammar small
+enough to hold in your head.</p>
+<p>We hand-write a recursive descent parser rather than using a generator. The reasons are
+practical: error messages you control, no build-step dependency, and precedence climbing
+for expressions is genuinely pleasant to write by hand. The complete lexer is ninety
+lines; the expression parser is another hundred and twenty.</p>
+<p>The post walks through tokenization, the precedence table, and the abstract syntax tree
+types, ending with a test suite of forty query strings round-tripped through the parser
+and pretty-printer. All code is in the companion repository, tagged part-1.</p>
+<p>Next in the series: part 2 turns the syntax tree into a logical plan, and part 3 makes
+the optimizer earn its name with predicate pushdown and join reordering.</p>
+</article>
+</body>
+</html>

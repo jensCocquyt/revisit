@@ -1,0 +1,54 @@
+name: Bedrock eval
+
+# Manual-dispatch only: never scheduled, never a required check. The merge-gating
+# CI workflow (ci.yml) stays fully offline and credential-free; this one assumes
+# a scoped AWS role via OIDC and publishes the full five-measure report.
+on:
+  workflow_dispatch:
+    inputs:
+      model_id:
+        description: Bedrock model ID to evaluate (becomes BEDROCK_MODEL_ID)
+        required: true
+        type: string
+      aws_region:
+        description: AWS region for Bedrock
+        required: true
+        default: eu-west-1
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/worker
+    steps:
+      - name: Require the OIDC role variable
+        if: ${{ vars.AWS_EVAL_ROLE_ARN == '' }}
+        run: |
+          echo "::error::Repository variable AWS_EVAL_ROLE_ARN is not set. Complete the one-time AWS OIDC setup in docs/runbook.md (section 'GitHub → AWS OIDC prerequisite') and set the variable to the role ARN."
+          exit 1
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_EVAL_ROLE_ARN }}
+          aws-region: ${{ inputs.aws_region }}
+      - run: uv sync --frozen
+      - name: Run the eval against Bedrock
+        env:
+          ENRICHER: bedrock
+          BEDROCK_MODEL_ID: ${{ inputs.model_id }}
+        run: uv run python -m worker.evals | tee eval-report.md
+      - name: Publish report as job summary
+        run: cat eval-report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bedrock-eval-report
+          path: apps/worker/eval-report.md

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head><title>Why your interface text looks wrong: a working developer's typography</title></head>
+<body>
+<article>
+<h1>Why your interface text looks wrong: a working developer's typography</h1>
+<p>You can feel bad typography before you can see it. An interface reads as cheap or
+tiring and nobody on the team can say why, because the causes hide below the threshold of
+casual inspection: line lengths a third too long, line height inherited from a reset
+instead of chosen, and four slightly different grays performing the role of hierarchy.
+This piece is the checklist I wish someone had handed me a decade ago.</p>
+<p>Start with measure — the length of a line of text. Between 45 and 75 characters is the
+comfortable band for body copy; interfaces routinely ship 110 because containers are sized
+to layouts, not to reading. Cap prose containers at around 65ch and half of your perceived
+polish problems evaporate before lunch.</p>
+<p>Line height is not a constant, it is a function of measure and size: short lines and
+large text want tight spacing, long lines and small text want loose. Body copy usually
+lands between 1.4 and 1.6; headings almost always want less than you think, often 1.1.
+The reset default of 1.5 everywhere is why your headings feel like they are floating away
+from themselves.</p>
+<p>Hierarchy needs at most three levels of visual distinction, built from two sizes and
+two weights, not from six grays. If everything is slightly different, nothing is
+different; readers parse hierarchy from consistent contrast, and each additional
+in-between shade taxes that parsing. Pick your levels, name them as design tokens, and
+delete every color that is not one of them.</p>
+<p>None of this requires taste. It requires measuring what you shipped against numbers
+that have been stable since the era of metal type, and the discipline to fix the boring
+things first.</p>
+</article>
+</body>
+</html>

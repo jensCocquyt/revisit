@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head><title>Security advisory: certificate validation bypass in libhandshake 2.x (CVE-2026-31337)</title></head>
+<body>
+<article>
+<h1>Security advisory: certificate validation bypass in libhandshake 2.x (CVE-2026-31337)</h1>
+<p>Severity: critical (CVSS 9.1). Affected: libhandshake 2.0.0 through 2.8.3. Fixed:
+2.8.4 and 3.1.1. Published 12 August 2026; embargo lifted after coordinated disclosure
+with major downstream distributions.</p>
+<p>A flaw in the resumption path of the TLS handshake allows an attacker who can observe
+one legitimate session to craft a resumption ticket that skips certificate chain
+validation entirely on reconnect. Clients that enable session resumption — the default in
+2.x — will silently accept an attacker-controlled server certificate on the resumed
+connection. Servers are not affected; this is a client-side validation bypass.</p>
+<p>Exploitation requires a network position between client and server, but no
+cryptographic breakthrough: a proof of concept is public and fits in eighty lines. We are
+aware of scanning activity but have no confirmed reports of exploitation in the wild at
+publication time.</p>
+<p>Remediation: upgrade to 2.8.4 or 3.1.1 immediately. If you cannot upgrade this week,
+disabling session resumption (set handshake_resumption = off) fully mitigates the flaw at
+a measurable latency cost on reconnect-heavy workloads. Vendored copies are the long tail
+here — audit anything that statically links libhandshake, including container base images
+built before 12 August.</p>
+<p>Detection: resumed sessions negotiated with a certificate fingerprint different from
+the original session are the signature; the advisory includes a script that checks
+connection logs for that pattern retroactively.</p>
+</article>
+</body>
+</html>

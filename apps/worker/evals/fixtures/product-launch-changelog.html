@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head><title>Ledgerline Changelog</title></head>
+<body>
+<article>
+<h1>Ledgerline Changelog</h1>
+<p>All notable changes to the Ledgerline platform, newest first. We ship weekly; this page
+is updated every Thursday. Entries tagged <em>beta</em> are behind a feature flag and may
+change without notice.</p>
+<h2>Week of 10 August 2026</h2>
+<p>Multi-currency invoices are now generally available. Invoices can carry line items in
+any of 32 currencies with the settlement currency chosen at issue time; historical rates
+come from the ECB daily fixing. The reconciliation report gained a currency-exposure
+column.</p>
+<h2>Week of 3 August 2026</h2>
+<p>Beta: webhook delivery now supports ordered mode, guaranteeing per-account ordering at
+the cost of throughput. Opt in per endpoint in the developer console. We also raised the
+API rate limit for read endpoints from 100 to 300 requests per minute on all paid plans.</p>
+<h2>Week of 27 July 2026</h2>
+<p>The CSV export format for statements changed: two new columns (settlement_id,
+fx_rate) were appended. Parsers that select columns by position must be updated; parsers
+selecting by header name are unaffected. This was announced four weeks in advance on the
+developer mailing list.</p>
+<h2>Week of 20 July 2026</h2>
+<p>Fixed a rounding inconsistency in prorated refunds smaller than one cent. Amounts now
+always round half-to-even in the customer's favor. No API surface changed.</p>
+</article>
+</body>
+</html>

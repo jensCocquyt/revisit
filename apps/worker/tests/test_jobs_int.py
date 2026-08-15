@@ -6,14 +6,18 @@ SSRF guard runs with a fake resolver, and enrichers are the stub or fakes.
 """
 
 import hashlib
+import json
+import logging
 
 import psycopg
 from psycopg.rows import dict_row
 
+from worker.content import store_content_version
 from worker.contract import validation_errors
 from worker.enrichers import Enricher, EnrichmentInput, EnrichmentOutcome
 from worker.enrichers.stub import StubEnricher
 from worker.errors import EnricherError, FetchTransientError
+from worker.extract import extract_content
 from worker.jobs import backoff_seconds, claim_one, process_one
 from worker.safe_fetch import FetchedPage, FetchLimits, fetch_page
 
@@ -277,6 +281,23 @@ class TestSuccess:
         assert {v["extracted_text"] for v in versions} == {PAGE_TEXT, changed}
         assert len(enrichment_rows(db, link_id)) == 2
 
+    def test_crash_after_content_storage_converges_on_reclaim(self, db, make_link):
+        # A worker that stored the content version and died before enrichment
+        # write-back: the reclaimed job reprocesses fully, and the uniqueness
+        # keys make both stores converge instead of duplicating.
+        link_id, job_id, _ = make_link()
+        assert claim(db) is not None
+        store_content_version(db, link_id, extract_content(PAGE_TEXT, "text/plain"))
+        expire_lease(db, job_id)
+
+        fresh = claim(db, worker=OTHER)
+        assert fresh is not None and fresh.id == job_id
+        assert process(db, fresh, StubEnricher(), worker=OTHER) is True
+        assert len(content_version_rows(db, link_id)) == 1
+        assert len(enrichment_rows(db, link_id)) == 1
+        assert fetch_job(db, job_id)["status"] == "completed"
+        assert link_status(db, link_id) == "enriched"
+
     def test_stale_claimant_skips_write_back(self, db, make_link):
         link_id, job_id, _ = make_link()
         stale = claim(db)
@@ -362,6 +383,38 @@ class TestFailure:
         row = fetch_job(db, job_id)
         assert row["status"] == "pending"
         assert row["last_error"].startswith("invalid_model_output: ")
+
+    def test_stale_claimant_failure_write_back_is_skipped(self, db, make_link):
+        link_id, job_id, _ = make_link()
+        stale = claim(db)
+        expire_lease(db, job_id)
+        fresh = claim(db, worker=OTHER)
+        assert fresh is not None and fresh.id == job_id
+
+        # The stale claimant fails late: the current claimant owns the
+        # statuses, so neither status nor attempts nor last_error may change.
+        assert process(db, stale, ExplodingEnricher()) is False
+        row = fetch_job(db, job_id)
+        assert row["status"] == "processing"
+        assert row["locked_by"] == OTHER
+        assert row["attempts"] == 0
+        assert row["last_error"] is None
+
+        assert process(db, fresh, StubEnricher(), worker=OTHER) is True
+        assert fetch_job(db, job_id)["status"] == "completed"
+        assert link_status(db, link_id) == "enriched"
+
+    def test_failure_events_carry_attempt_and_error_code(self, db, make_link, caplog):
+        _, job_id, _ = make_link()
+        with caplog.at_level(logging.INFO, logger="worker"):
+            assert process(db, claim(db), ExplodingEnricher(), max_attempts=2) is False
+            make_available_now(db, job_id)
+            assert process(db, claim(db), ExplodingEnricher(), max_attempts=2) is False
+        events = [json.loads(record.message) for record in caplog.records]
+        rescheduled = [e for e in events if e["msg"] == "job rescheduled"]
+        failed = [e for e in events if e["msg"] == "job failed"]
+        assert [(e["attempt"], e["error_code"]) for e in rescheduled] == [(1, "enrich_error")]
+        assert [(e["attempt"], e["error_code"]) for e in failed] == [(2, "enrich_error")]
 
     def test_backoff_is_non_decreasing_and_capped(self):
         delays = [backoff_seconds(attempts) for attempts in range(8)]

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head><title>Consensus in partially synchronous networks: a survey</title></head>
+<body>
+<article>
+<h1>Consensus in partially synchronous networks: a survey</h1>
+<p>Abstract. Reaching agreement among unreliable processes is the foundational problem of
+distributed computing. This survey traces the line of work from the impossibility result of
+Fischer, Lynch, and Paterson through the partially synchronous models that make consensus
+practical, and compares the three families of protocols that dominate production systems
+today: viewstamped replication, Paxos and its variants, and Raft.</p>
+<p>The impossibility result tells us that no deterministic protocol can guarantee agreement
+in a fully asynchronous system if even one process may crash. Practical systems escape the
+impossibility by assuming partial synchrony: the network may be arbitrarily slow for a
+while, but eventually messages arrive within some unknown bound. Under that assumption,
+leader-based protocols can guarantee safety always and liveness whenever the network
+cooperates.</p>
+<p>We spend the middle sections on the mechanics that papers usually gloss over: leader
+election timeouts and their interaction with tail latency, log compaction and snapshot
+transfer, reconfiguration protocols for changing the member set without downtime, and the
+subtle ways implementations diverge from the published protocols. A recurring theme is that
+the hard part of consensus in production is not the happy path but the reconfiguration and
+recovery paths, which receive a fraction of the testing attention.</p>
+<p>We close with open problems: flexible quorums under geographic distribution, the tension
+between byzantine tolerance and throughput, and formally verified implementations. Sixty
+pages, one hundred and forty references.</p>
+</article>
+</body>
+</html>

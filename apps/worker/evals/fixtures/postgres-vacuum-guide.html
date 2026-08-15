@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head><title>Understanding VACUUM: a practical guide to PostgreSQL table maintenance</title></head>
+<body>
+<article>
+<h1>Understanding VACUUM: a practical guide to PostgreSQL table maintenance</h1>
+<p>PostgreSQL never updates a row in place. Every UPDATE writes a new row version and leaves
+the old one behind as a dead tuple, and every DELETE merely marks a version as no longer
+visible. VACUUM is the process that reclaims that space, and understanding when it runs and
+what it actually does is the difference between a database that hums along for years and one
+that mysteriously doubles in size every quarter.</p>
+<p>Plain VACUUM scans a table, marks dead tuples as reusable, and updates the visibility map
+so index-only scans stay cheap. It does not return disk space to the operating system; the
+table file keeps its high-water mark. VACUUM FULL does shrink the file, but it takes an
+exclusive lock and rewrites the whole table, so it belongs in a maintenance window, not a
+cron job.</p>
+<p>Autovacuum triggers when dead tuples exceed a threshold: by default 20 percent of the
+table plus fifty rows. On a ten-million-row table that means two million dead tuples before
+anything happens, which is why large, hot tables almost always need per-table settings.
+Lowering autovacuum_vacuum_scale_factor to 0.01 on your busiest tables is the single most
+effective tuning change most teams ever make.</p>
+<p>The other job VACUUM does is freezing: rewriting old transaction IDs so the 32-bit
+counter can wrap around safely. If freezing falls too far behind, PostgreSQL will refuse
+writes to protect data integrity. Monitor pg_stat_user_tables and the age of datfrozenxid;
+alerts on those two views catch nearly every vacuum-related incident before it happens.</p>
+</article>
+</body>
+</html>

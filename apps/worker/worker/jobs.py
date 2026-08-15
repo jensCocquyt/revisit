@@ -234,10 +234,13 @@ def _fail(
             )
     if claimed.rowcount == 0:
         _log_event("stale claim, write-back skipped", job)
-    elif terminal:
-        _log_event("job failed", job, last_error=last_error)
+        return
+    # attempt/error_code make failures countable and groupable from logs alone.
+    counters = {"attempt": job.attempts + 1, "error_code": last_error.split(":", 1)[0]}
+    if terminal:
+        _log_event("job failed", job, last_error=last_error, **counters)
     else:
-        _log_event("job rescheduled", job, last_error=last_error)
+        _log_event("job rescheduled", job, last_error=last_error, **counters)
 
 
 def _log_event(msg: str, job: ClaimedJob, **extra: str | int) -> None:

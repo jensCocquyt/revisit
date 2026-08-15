@@ -1,0 +1,6 @@
+{
+  "expected_save_intent": "time_sensitive",
+  "expected_recommended_action": "action",
+  "revisit_justified": false,
+  "goal": "speak at one conference this year"
+}

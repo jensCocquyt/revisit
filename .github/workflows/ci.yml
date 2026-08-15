@@ -85,6 +85,8 @@ jobs:
         run: uv run ruff check .
       - name: Unit and integration tests
         run: uv run pytest -q
+      - name: Eval gate (stub, offline)
+        run: uv run python -m worker.evals --gate
 
   stack:
     runs-on: ubuntu-latest

@@ -1,0 +1,6 @@
+{
+  "expected_save_intent": "reference",
+  "expected_recommended_action": "revisit",
+  "revisit_justified": true,
+  "goal": "pick a metering vendor next quarter"
+}

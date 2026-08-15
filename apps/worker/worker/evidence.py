@@ -1,9 +1,9 @@
-"""Evidence verification: every persisted item must resolve to stored text.
+"""Evidence verification before persistence.
 
-An item resolves only if its quote appears verbatim in the extracted text.
-Offsets are trusted when they already point at the quote, otherwise rewritten
-to the first verbatim occurrence — deterministic exact matching, never a
-guess. Items whose quote is not in the text are dropped.
+Per item: exact offsets are kept; a verbatim quote at wrong offsets is
+repaired to its first occurrence; a quote absent from the text is dropped,
+never guessed. Every persisted item's slice of the stored text equals its
+quote.
 """
 
 from worker.contract import NonRevisitResult, RevisitResult
@@ -17,16 +17,19 @@ def resolve_evidence(
     changed = False
     for item in result.evidence:
         if text[item.start_offset : item.end_offset] == item.quote:
-            kept.append(item)
+            kept.append(item)  # offsets already point at the quote
             continue
         changed = True
         index = text.find(item.quote)
         if index >= 0:
+            # Quote exists, offsets are wrong (models miscount): repair to the
+            # first verbatim occurrence.
             kept.append(
                 item.model_copy(
                     update={"start_offset": index, "end_offset": index + len(item.quote)}
                 )
             )
+        # else: quote is not in the text — drop the item.
     dropped = len(result.evidence) - len(kept)
     if not changed:
         return result, 0

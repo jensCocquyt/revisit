@@ -60,7 +60,7 @@ def test_valid_response_yields_validated_outcome_with_metadata():
     assert outcome.model_id == MODEL_ID
     assert isinstance(outcome.latency_ms, int) and outcome.latency_ms >= 0
     assert outcome.token_usage == {"input_tokens": 120, "output_tokens": 45}
-    assert subject.prompt_version == "bedrock-v1"
+    assert subject.prompt_version == "bedrock-v2"
 
 
 def test_contract_invalid_output_is_retryable():
@@ -123,6 +123,36 @@ def test_tool_schema_is_a_flat_object():
     ]
     assert "revisit" in schema["properties"]
     assert "revisit" not in schema["required"]
+
+
+def test_system_prompt_carries_decision_criteria():
+    # Stable markers, not full-text equality: each enum value is defined with
+    # its boundary, revisit demands a concrete date, truncation is flagged.
+    for marker in (
+        "reference:",
+        "read_later:",
+        "time_sensitive:",
+        "none:",
+        "read_soon:",
+        "action:",
+        "revisit:",
+        "most common correct answer",
+        "concrete date",
+        "suggested_date",
+        "truncated",
+    ):
+        assert marker in SYSTEM_PROMPT, f"missing marker: {marker}"
+
+
+def test_tool_schema_fields_carry_descriptions():
+    subject, client = enricher(converse_response(VALID_RESULT))
+    subject.enrich(EnrichmentInput(content="text"))
+    (call,) = client.calls
+    props = call["toolConfig"]["tools"][0]["toolSpec"]["inputSchema"]["json"]["properties"]
+    for field in ("summary", "key_takeaway", "topics", "suggested_group", "evidence"):
+        assert props[field].get("description"), f"missing description: {field}"
+    assert "verbatim" in props["evidence"]["description"]
+    assert "500" in props["evidence"]["description"]
 
 
 def test_page_content_is_truncated_to_budget():

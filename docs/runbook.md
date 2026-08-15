@@ -85,7 +85,12 @@ no long-lived AWS keys are stored in the repository. One-time AWS setup:
    `https://token.actions.githubusercontent.com` and audience `sts.amazonaws.com`.
 
 2. **Create the IAM role** the workflow assumes. Trust policy, pinned to this
-   repository (replace the account id):
+   repository (replace the account id). GitHub's OIDC `sub` claim embeds
+   immutable account and repository ids (`repo:<owner>@<owner-id>/<repo>@<repo-id>:...`),
+   so the condition must use the id-embedded form — the plain
+   `repo:<owner>/<repo>:*` pattern from older guides no longer matches. Read
+   the exact `sub` from a failed attempt's CloudTrail `AssumeRoleWithWebIdentity`
+   event (`userIdentity.userName`) if in doubt:
 
    ```json
    {
@@ -102,7 +107,7 @@ no long-lived AWS keys are stored in the repository. One-time AWS setup:
              "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
            },
            "StringLike": {
-             "token.actions.githubusercontent.com:sub": "repo:jensCocquyt/revisit:*"
+             "token.actions.githubusercontent.com:sub": "repo:jensCocquyt@3635860/revisit@1324237451:*"
            }
          }
        }
@@ -127,6 +132,17 @@ no long-lived AWS keys are stored in the repository. One-time AWS setup:
 
    Narrow `Resource` to the specific model ARNs you evaluate if you want a
    tighter scope.
+
+   **First-invoke Marketplace subscription:** Bedrock's model-access page is
+   retired; Anthropic models are Marketplace-served and auto-subscribe on the
+   account's first invocation — but that first call must come from a principal
+   allowed to subscribe. If the eval fails everywhere with
+   `AccessDeniedException: Model access is denied ...`, temporarily attach a
+   second inline policy allowing `aws-marketplace:Subscribe` and
+   `aws-marketplace:ViewSubscriptions` (Resource `*`), run the workflow once,
+   wait a few minutes for the subscription to activate (calls are denied while
+   it is pending), then run again and remove the policy. The subscription is
+   account-wide and sticky.
 
 4. **Set the repository variable**: repo Settings → Secrets and variables →
    Actions → Variables → `AWS_EVAL_ROLE_ARN` = the role's ARN. The workflow

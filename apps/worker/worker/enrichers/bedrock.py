@@ -69,7 +69,7 @@ class BedrockEnricher(Enricher):
                             "toolSpec": {
                                 "name": TOOL_NAME,
                                 "description": "Record the structured enrichment result.",
-                                "inputSchema": {"json": result_json_schema()},
+                                "inputSchema": {"json": _tool_schema()},
                             }
                         }
                     ],
@@ -99,6 +99,12 @@ class BedrockEnricher(Enricher):
             latency_ms=latency_ms,
             token_usage=token_usage or None,
         )
+
+
+def _tool_schema() -> dict[str, Any]:
+    # Bedrock requires a top-level "type": "object" on tool input schemas. The
+    # contract schema is a oneOf of two objects, so stamping the type is lossless.
+    return {"type": "object", **result_json_schema()}
 
 
 def _user_message(request: EnrichmentInput) -> str:

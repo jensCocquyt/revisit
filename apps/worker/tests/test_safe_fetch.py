@@ -10,11 +10,10 @@ from dataclasses import replace
 import httpx
 import pytest
 
+from worker.errors import FetchTerminalError, FetchTransientError
 from worker.safe_fetch import (
     FetchedPage,
     FetchLimits,
-    FetchTerminalError,
-    FetchTransientError,
     fetch_page,
     validate_url,
 )

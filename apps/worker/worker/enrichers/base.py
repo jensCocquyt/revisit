@@ -25,19 +25,6 @@ class EnrichmentOutcome:
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
 
-class EnricherError(Exception):
-    """Enrichment failure with a stable code; retryable per the backoff policy.
-
-    Codes: invalid_model_output (response failed contract validation or carried
-    no structured output), enrich_error (model call or SDK failure).
-    """
-
-    def __init__(self, code: str, detail: str):
-        self.code = code
-        self.detail = detail
-        super().__init__(f"{code}: {detail}")
-
-
 class Enricher(ABC):
     # Identifies the prompt/behavior generation in the enrichments idempotency
     # key; subclasses must set it and change it whenever their prompt changes.
@@ -51,11 +38,11 @@ def get_enricher(name: str) -> Enricher:
     # Imported here to keep the seam module free of implementation imports and
     # boto3 out of the process unless Bedrock is actually selected.
     if name == "stub":
-        from worker.stub import StubEnricher
+        from worker.enrichers.stub import StubEnricher
 
         return StubEnricher()
     if name == "bedrock":
-        from worker.bedrock import BedrockEnricher
+        from worker.enrichers.bedrock import BedrockEnricher
 
         return BedrockEnricher()
     raise ValueError(f"Unknown enricher: {name!r} (expected 'stub' or 'bedrock')")

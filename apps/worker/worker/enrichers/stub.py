@@ -11,7 +11,7 @@ from worker.contract import (
     RevisitResult,
     RevisitSuggestion,
 )
-from worker.enricher import Enricher, EnrichmentInput, EnrichmentOutcome
+from worker.enrichers.base import Enricher, EnrichmentInput, EnrichmentOutcome
 
 SAVE_INTENTS: list[Literal["reference", "read_later", "time_sensitive"]] = [
     "reference",

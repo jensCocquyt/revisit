@@ -11,10 +11,11 @@ import psycopg
 from psycopg.rows import dict_row
 
 from worker.contract import validation_errors
-from worker.enricher import Enricher, EnricherError, EnrichmentInput, EnrichmentOutcome
+from worker.enrichers import Enricher, EnrichmentInput, EnrichmentOutcome
+from worker.enrichers.stub import StubEnricher
+from worker.errors import EnricherError, FetchTransientError
 from worker.jobs import backoff_seconds, claim_one, process_one
-from worker.safe_fetch import FetchedPage, FetchLimits, FetchTransientError, fetch_page
-from worker.stub import StubEnricher
+from worker.safe_fetch import FetchedPage, FetchLimits, fetch_page
 
 WORKER = "test-worker-a"
 OTHER = "test-worker-b"

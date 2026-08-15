@@ -78,14 +78,14 @@ _complete(...)                         — short txn, extended
 
 `_complete` now writes `content_version_id`, `content_hash` (of extracted text), `prompt_version` from `enricher.prompt_version`, `model_id`, `latency_ms`, and `token_usage` from the outcome. The `ON CONFLICT (link_id, content_hash, prompt_version) DO NOTHING` idempotency and the lease-guarded write-back are unchanged.
 
-### 5. Seam changes (`worker/enricher.py`)
+### 5. Seam changes (`worker/enrichers/base.py`)
 
 - `Enricher` gains a class attribute `prompt_version: str` (abstract via declaration; stub = `"stub-v1"`, Bedrock = `"bedrock-v1"` bumped on prompt edits). The `PROMPT_VERSION` module constant in `jobs.py` is deleted — `jobs.py` reads it from the enricher instance. Prompt version participates in the idempotency key, so a prompt bump creates a new enrichment generation instead of being deduped away.
 - `EnrichmentOutcome` gains `latency_ms: int | None = None` and `token_usage: dict[str, int] | None = None`. Stub leaves both `None`.
 - `get_enricher` accepts `"bedrock"` with a lazy import (boto3 only imported when selected).
 - `EnrichmentInput.content` semantics change from URL to extracted text; no field changes.
 
-### 6. Bedrock call shape (`worker/bedrock.py`)
+### 6. Bedrock call shape (`worker/enrichers/bedrock.py`)
 
 One **Converse API** call via `boto3` (`bedrock-runtime`), structured output through a forced tool call:
 

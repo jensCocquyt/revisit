@@ -6,10 +6,11 @@ Raw HTML is dropped after extraction; only the extracted record is stored.
 
 import hashlib
 from dataclasses import dataclass
+from typing import Any
 
 import trafilatura
 
-from worker.safe_fetch import FetchTerminalError
+from worker.errors import FetchTerminalError
 
 
 @dataclass(frozen=True)
@@ -22,28 +23,29 @@ class ExtractedContent:
 
 def extract_content(body: str, content_type: str) -> ExtractedContent:
     if content_type == "text/plain":
-        text = body.strip()
-        title, metadata = None, {}
+        text, doc = body.strip(), None
     else:
         text = (trafilatura.extract(body, include_comments=False) or "").strip()
-        title, metadata = _metadata(body)
+        doc = trafilatura.extract_metadata(body)
     if not text:
         raise FetchTerminalError("empty_content", "no readable text extracted")
     return ExtractedContent(
         text=text,
         content_hash=hashlib.sha256(text.encode("utf-8")).hexdigest(),
-        title=title,
-        metadata=metadata,
+        title=_title(doc),
+        metadata=_metadata(doc),
     )
 
 
-def _metadata(body: str) -> tuple[str | None, dict[str, str]]:
-    doc = trafilatura.extract_metadata(body)
+def _title(doc: Any | None) -> str | None:
+    return (doc.title or None) if doc is not None else None
+
+
+def _metadata(doc: Any | None) -> dict[str, str]:
     if doc is None:
-        return None, {}
-    fields = {
+        return {}
+    return {
         name: value
         for name in ("author", "date", "sitename", "description")
         if isinstance(value := getattr(doc, name, None), str) and value
     }
-    return doc.title or None, fields

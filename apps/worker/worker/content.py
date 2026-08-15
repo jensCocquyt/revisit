@@ -8,12 +8,9 @@ from worker.extract import ExtractedContent
 
 
 def store_content_version(conn: psycopg.Connection, link_id: str, content: ExtractedContent) -> str:
-    """Store the extracted content, reusing an existing identical version.
-
-    Idempotent under at-least-once processing via the (link_id, content_hash)
-    unique key. One short transaction; committed before enrichment starts so
-    the version that evidence references exists even if the model call dies.
-    """
+    """Store the extracted content, reusing an existing identical version."""
+    # Idempotent via the (link_id, content_hash) key; committed before
+    # enrichment so the version evidence references exists even if the model dies.
     with conn.transaction():
         conn.execute(
             """

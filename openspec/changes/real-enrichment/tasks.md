@@ -31,7 +31,7 @@
 - [x] 5.4 Integration tests (fake transport + resolver, stub enricher): happy path stores linked content version + enrichment; blocked URL terminal with stable `last_error` and no retry; timeout reschedules with backoff; identical reprocessing reuses content version and hits the enrichment conflict path; persisted evidence slices equal quotes
 - [x] 5.5 Update `worker/smoke.py` if needed so the in-container contract smoke still passes with the seam changes
 
-## 6. Bedrock enricher (`worker/bedrock.py`)
+## 6. Bedrock enricher (`worker/enrichers/bedrock.py`)
 
 - [x] 6.1 Implement `BedrockEnricher` per design §6: single Converse call, static system prompt, note/goal + delimited `<page_content>` in the user message, content truncated to the fixed char budget, forced tool with schema derived from the pydantic contract
 - [x] 6.2 Strict JSON-mode contract validation of the tool input; missing tool call / invalid output / SDK errors raise transient errors; outcome carries `model_id`, measured `latency_ms`, `token_usage`; `prompt_version = "bedrock-v1"`

@@ -4,8 +4,9 @@ from typing import Any
 
 import pytest
 
-from worker.bedrock import MAX_CONTENT_CHARS, SYSTEM_PROMPT, TOOL_NAME, BedrockEnricher
-from worker.enricher import EnricherError, EnrichmentInput
+from worker.enrichers import EnrichmentInput
+from worker.enrichers.bedrock import MAX_CONTENT_CHARS, SYSTEM_PROMPT, TOOL_NAME, BedrockEnricher
+from worker.errors import EnricherError
 
 MODEL_ID = "anthropic.claude-test-v1"
 

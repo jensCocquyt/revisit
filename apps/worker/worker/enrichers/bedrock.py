@@ -13,7 +13,8 @@ from pydantic import ValidationError
 
 from worker import config
 from worker.contract import parse_result, result_json_schema
-from worker.enricher import Enricher, EnricherError, EnrichmentInput, EnrichmentOutcome
+from worker.enrichers.base import Enricher, EnrichmentInput, EnrichmentOutcome
+from worker.errors import EnricherError
 
 PROMPT_VERSION = "bedrock-v1"
 TOOL_NAME = "record_enrichment"

@@ -19,6 +19,7 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 
 from worker import config
+from worker.errors import FetchTerminalError, FetchTransientError
 
 USER_AGENT = "revisit-worker/0.1 (link enrichment)"
 
@@ -95,31 +96,6 @@ def limits_from_env() -> FetchLimits:
     )
 
 
-class FetchTerminalError(Exception):
-    """Retrying cannot fix this; the job and link fail immediately.
-
-    Codes: invalid_url, blocked_url, too_many_redirects,
-    unsupported_content_type, content_too_large, empty_content.
-    """
-
-    def __init__(self, code: str, detail: str):
-        self.code = code
-        self.detail = detail
-        super().__init__(f"{code}: {detail}")
-
-
-class FetchTransientError(Exception):
-    """Retryable per the bounded-backoff policy.
-
-    Codes: fetch_dns_error, fetch_timeout, fetch_http_error.
-    """
-
-    def __init__(self, code: str, detail: str):
-        self.code = code
-        self.detail = detail
-        super().__init__(f"{code}: {detail}")
-
-
 @dataclass(frozen=True)
 class FetchLimits:
     max_redirects: int
@@ -175,11 +151,9 @@ def _resolve_addresses(
 
 
 def _is_blocked(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
-    # Everything that is not unambiguously a public unicast address is blocked:
-    # loopback, private, link-local (incl. 169.254.169.254 metadata), multicast,
-    # unspecified, and reserved ranges. `is_global` covers those and the rest of
-    # the IANA special-purpose registry; multicast is checked explicitly because
-    # some multicast scopes count as global.
+    # Only plainly public addresses pass. `is_global` rejects loopback, private,
+    # link-local (cloud metadata), and reserved ranges; multicast gets its own
+    # check because some multicast ranges count as global.
     mapped = addr.ipv4_mapped if isinstance(addr, ipaddress.IPv6Address) else None
     if mapped is not None:
         addr = mapped

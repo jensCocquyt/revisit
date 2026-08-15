@@ -18,10 +18,11 @@ import psycopg
 from worker import safe_fetch
 from worker.content import store_content_version
 from worker.contract import NonRevisitResult, RevisitResult
-from worker.enricher import Enricher, EnricherError, EnrichmentInput, EnrichmentOutcome
+from worker.enrichers import Enricher, EnrichmentInput, EnrichmentOutcome
+from worker.errors import EnricherError, FetchTerminalError, FetchTransientError
 from worker.evidence import resolve_evidence
 from worker.extract import ExtractedContent, extract_content
-from worker.safe_fetch import FetchedPage, FetchTerminalError, FetchTransientError
+from worker.safe_fetch import FetchedPage
 
 log = logging.getLogger("worker")
 

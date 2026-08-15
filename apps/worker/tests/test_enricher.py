@@ -1,8 +1,8 @@
 import pytest
 
 from worker.contract import is_valid
-from worker.enricher import Enricher, EnrichmentInput, get_enricher
-from worker.stub import StubEnricher
+from worker.enrichers import Enricher, EnrichmentInput, get_enricher
+from worker.enrichers.stub import StubEnricher
 
 SAMPLE_INPUTS = [
     EnrichmentInput(content="A long article about database replication strategies."),
@@ -47,6 +47,20 @@ def test_stub_satisfies_the_seam():
     assert isinstance(StubEnricher(), Enricher)
 
 
+def test_stub_declares_prompt_version():
+    assert StubEnricher.prompt_version == "stub-v1"
+
+
+def test_bedrock_is_selectable(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("BEDROCK_MODEL_ID", "anthropic.claude-test-v1")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    from worker.enrichers.bedrock import BedrockEnricher
+
+    assert isinstance(get_enricher("bedrock"), BedrockEnricher)
+
+
 def test_unknown_enricher_rejected():
     with pytest.raises(ValueError, match="Unknown enricher"):
-        get_enricher("bedrock")
+        get_enricher("gpt")

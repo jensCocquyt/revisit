@@ -89,10 +89,16 @@ jobs:
   stack:
     runs-on: ubuntu-latest
     needs: [api, worker]
+    env:
+      # Starts the CI-only fixture page server alongside the stack so the
+      # save -> enriched check fetches real HTML without leaving the network.
+      COMPOSE_PROFILES: ci
     steps:
       - uses: actions/checkout@v4
       - name: Configure environment
-        run: cp .env.example .env
+        run: |
+          cp .env.example .env
+          echo "FETCH_ALLOWED_HOSTS=fixture" >> .env
       - name: Build and start the stack
         run: docker compose up -d --build --wait
       - name: API health endpoint responds
@@ -100,22 +106,7 @@ jobs:
       - name: Stub enricher produces a contract-valid result in the container
         run: docker compose exec -T worker uv run --no-sync python -m worker.smoke
       - name: Saved link reaches enriched end to end
-        run: |
-          link_id=$(curl -fsS -X POST http://localhost:3000/links \
-            -H 'content-type: application/json' \
-            -H "Idempotency-Key: ci-stack-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
-            -d '{"url": "https://example.com/ci-stack-check"}' | jq -re '.id')
-          for _ in $(seq 1 30); do
-            status=$(curl -fsS "http://localhost:3000/links/$link_id" | jq -re '.status')
-            echo "link $link_id status: $status"
-            case "$status" in
-              enriched) exit 0 ;;
-              failed) echo 'link failed instead of enriched' >&2; exit 1 ;;
-            esac
-            sleep 2
-          done
-          echo 'timed out waiting for enriched' >&2
-          exit 1
+        run: ./scripts/stack-e2e.sh
       - name: Show service status
         if: always()
         run: docker compose ps

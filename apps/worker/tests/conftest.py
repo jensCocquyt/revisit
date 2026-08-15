@@ -94,5 +94,6 @@ def make_link(db: psycopg.Connection):
 
     for link_id in created:
         db.execute("DELETE FROM enrichments WHERE link_id = %s", (link_id,))
+        db.execute("DELETE FROM content_versions WHERE link_id = %s", (link_id,))
         db.execute("DELETE FROM enrichment_jobs WHERE link_id = %s", (link_id,))
         db.execute("DELETE FROM links WHERE id = %s", (link_id,))

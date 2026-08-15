@@ -19,7 +19,7 @@ from worker.config import (
     poll_seconds,
     worker_id,
 )
-from worker.enricher import get_enricher
+from worker.enrichers import get_enricher
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 log = logging.getLogger("worker")

@@ -74,8 +74,10 @@ EnrichmentResult = Annotated[
 ]
 
 
+# The union type has no .model_validate(); a TypeAdapter provides it, and is
+# cached because constructing one compiles the union's validator.
 @lru_cache(maxsize=1)
-def _adapter() -> TypeAdapter[Any]:
+def _enrichment_result_adapter() -> TypeAdapter[Any]:
     return TypeAdapter(EnrichmentResult)
 
 
@@ -88,7 +90,7 @@ def validation_errors(result: Any) -> list[str]:
     """
     payload = result.model_dump_json() if isinstance(result, BaseModel) else json.dumps(result)
     try:
-        _adapter().validate_json(payload)
+        _enrichment_result_adapter().validate_json(payload)
     except ValidationError as exc:
         return [
             f"/{'/'.join(str(p) for p in error['loc'])}: {error['msg']}"
@@ -99,3 +101,12 @@ def validation_errors(result: Any) -> list[str]:
 
 def is_valid(result: Any) -> bool:
     return not validation_errors(result)
+
+
+def parse_result(data: Any) -> NonRevisitResult | RevisitResult:
+    """Parse untrusted data into a contract model, raising ValidationError.
+
+    Runs in JSON mode (same semantics as validation_errors) so model output
+    is judged exactly like any other JSON document crossing the contract.
+    """
+    return _enrichment_result_adapter().validate_json(json.dumps(data))

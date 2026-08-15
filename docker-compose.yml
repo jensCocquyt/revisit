@@ -65,6 +65,12 @@ services:
       WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-2}
       WORKER_LEASE_SECONDS: ${WORKER_LEASE_SECONDS:-60}
       WORKER_MAX_ATTEMPTS: ${WORKER_MAX_ATTEMPTS:-3}
+      FETCH_MAX_REDIRECTS: ${FETCH_MAX_REDIRECTS:-5}
+      FETCH_MAX_BYTES: ${FETCH_MAX_BYTES:-2000000}
+      FETCH_TIMEOUT_SECONDS: ${FETCH_TIMEOUT_SECONDS:-15}
+      FETCH_ALLOWED_CONTENT_TYPES: ${FETCH_ALLOWED_CONTENT_TYPES:-text/html,application/xhtml+xml,text/plain}
+      FETCH_ALLOWED_HOSTS: ${FETCH_ALLOWED_HOSTS:-}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -76,6 +82,15 @@ services:
       timeout: 10s
       retries: 10
       start_period: 10s
+
+  # CI-only static page for the offline save -> enriched stack check: gives the
+  # worker a real HTML page to fetch without leaving the compose network.
+  # Started only with `docker compose --profile ci up`.
+  fixture:
+    image: nginx:1.27-alpine
+    profiles: ["ci"]
+    volumes:
+      - ./apps/worker/tests/fixtures/article.html:/usr/share/nginx/html/index.html:ro
 
 volumes:
   pgdata:

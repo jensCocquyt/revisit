@@ -7,7 +7,7 @@ Used by the CI stack job; exits non-zero on any contract violation.
 import sys
 
 from worker.contract import validation_errors
-from worker.enricher import EnrichmentInput, get_enricher
+from worker.enrichers import EnrichmentInput, get_enricher
 
 
 def main() -> int:

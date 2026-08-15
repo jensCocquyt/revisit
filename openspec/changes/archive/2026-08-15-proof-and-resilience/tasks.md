@@ -32,7 +32,7 @@
 
 - [x] 6.1 Create `.github/workflows/eval.yml`: `workflow_dispatch` only, `id-token: write`; fail fast with a clear message when `vars.AWS_EVAL_ROLE_ARN` is unset; assume role via `aws-actions/configure-aws-credentials`; run the eval with `ENRICHER=bedrock` (no `--gate`); append the report to `$GITHUB_STEP_SUMMARY` and upload it as an artifact
 - [x] 6.2 Document the AWS OIDC prerequisite in the runbook: create the GitHub OIDC provider, the role with a trust policy pinned to this repo, and a `bedrock:InvokeModel`-only policy; set the repo variable
-- [ ] 6.3 After the AWS prerequisite is set up: dispatch the workflow once, confirm it runs green, and attach the published report to the PR
+- [x] 6.3 After the AWS prerequisite is set up: dispatch the workflow once, confirm it runs green, and attach the published report to the PR
 
 ## 7. Verification
 

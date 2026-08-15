@@ -110,8 +110,3 @@ def parse_result(data: Any) -> NonRevisitResult | RevisitResult:
     is judged exactly like any other JSON document crossing the contract.
     """
     return _enrichment_result_adapter().validate_json(json.dumps(data))
-
-
-def result_json_schema() -> dict[str, Any]:
-    """JSON Schema of the result union, for structured-output tool definitions."""
-    return _enrichment_result_adapter().json_schema()

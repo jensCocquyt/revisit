@@ -106,14 +106,23 @@ def test_page_text_never_reaches_the_system_prompt():
     assert tool_config["tools"][0]["toolSpec"]["name"] == TOOL_NAME
 
 
-def test_tool_schema_is_a_top_level_object():
-    # Bedrock rejects tool input schemas whose top-level type is not "object".
+def test_tool_schema_is_a_flat_object():
+    # Bedrock rejects schemas without a top-level "type": "object", and models
+    # generate poorly from oneOf unions — the guidance schema must be flat.
     subject, client = enricher(converse_response(VALID_RESULT))
     subject.enrich(EnrichmentInput(content="text"))
     (call,) = client.calls
     schema = call["toolConfig"]["tools"][0]["toolSpec"]["inputSchema"]["json"]
     assert schema["type"] == "object"
-    assert "oneOf" in schema  # still the discriminated-union contract schema
+    assert "oneOf" not in schema
+    assert schema["properties"]["recommended_action"]["enum"] == [
+        "none",
+        "read_soon",
+        "action",
+        "revisit",
+    ]
+    assert "revisit" in schema["properties"]
+    assert "revisit" not in schema["required"]
 
 
 def test_page_content_is_truncated_to_budget():

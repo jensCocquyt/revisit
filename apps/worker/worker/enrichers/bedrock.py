@@ -12,7 +12,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from worker import config
-from worker.contract import parse_result, result_json_schema
+from worker.contract import RevisitResult, parse_result
 from worker.enrichers.base import Enricher, EnrichmentInput, EnrichmentOutcome
 from worker.errors import EnricherError
 
@@ -102,9 +102,22 @@ class BedrockEnricher(Enricher):
 
 
 def _tool_schema() -> dict[str, Any]:
-    # Bedrock requires a top-level "type": "object" on tool input schemas. The
-    # contract schema is a oneOf of two objects, so stamping the type is lossless.
-    return {"type": "object", **result_json_schema()}
+    # Flat guidance schema instead of the contract's discriminated union: models
+    # generate poorly from oneOf/$ref schemas (Nova returns {}), and Bedrock
+    # requires a top-level "type": "object" anyway. Built from the revisit
+    # variant — the superset with every field — with recommended_action widened
+    # to all four actions and revisit made optional. parse_result still
+    # validates against the strict union, so the revisit invariant holds.
+    schema = RevisitResult.model_json_schema()
+    schema["properties"]["recommended_action"] = {
+        "type": "string",
+        "enum": ["none", "read_soon", "action", "revisit"],
+    }
+    schema["required"].remove("revisit")
+    schema["properties"]["revisit"]["description"] = (
+        'Required when recommended_action is "revisit"; omit it otherwise.'
+    )
+    return schema
 
 
 def _user_message(request: EnrichmentInput) -> str:

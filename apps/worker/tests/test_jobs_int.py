@@ -8,12 +8,13 @@ SSRF guard runs with a fake resolver, and enrichers are the stub or fakes.
 import hashlib
 import json
 import logging
+from datetime import date
 
 import psycopg
 from psycopg.rows import dict_row
 
 from worker.content import store_content_version
-from worker.contract import validation_errors
+from worker.contract import Deadline, validation_errors
 from worker.enrichers import Enricher, EnrichmentInput, EnrichmentOutcome
 from worker.enrichers.stub import StubEnricher
 from worker.errors import EnricherError, FetchTransientError
@@ -461,3 +462,56 @@ class TestEvidenceDropping:
         evidence = row["result"]["evidence"]
         assert len(evidence) == 1
         assert evidence[0]["quote"] != "this quote is not in the page"
+
+    def test_unresolvable_deadline_source_is_dropped_before_persistence(self, db, make_link):
+        link_id, _, _ = make_link()
+
+        class FabricatedDeadlineEnricher(Enricher):
+            prompt_version = "fabricated-v1"
+
+            def enrich(self, request: EnrichmentInput) -> EnrichmentOutcome:
+                outcome = StubEnricher().enrich(request)
+                deadline = Deadline(
+                    date=date(2030, 6, 1),
+                    reason="a date the page never states",
+                    source=outcome.result.evidence[0].model_copy(
+                        update={"quote": "sentence absent from the page"}
+                    ),
+                )
+                result = outcome.result.model_copy(update={"deadline": deadline})
+                return EnrichmentOutcome(result=result, model_id="fabricated")
+
+        assert process(db, claim(db), FabricatedDeadlineEnricher()) is True
+        (row,) = enrichment_rows(db, link_id)
+        assert row["result"].get("deadline") is None
+        assert link_status(db, link_id) == "enriched"
+
+
+class TestTagVocabulary:
+    class RecordingEnricher(Enricher):
+        prompt_version = "recording-v1"
+
+        def __init__(self):
+            self.received: tuple[str, ...] | None = None
+
+        def enrich(self, request: EnrichmentInput) -> EnrichmentOutcome:
+            self.received = request.known_tags
+            return StubEnricher().enrich(request)
+
+    def test_cold_start_passes_empty_vocabulary(self, db, make_link):
+        make_link()
+        recorder = self.RecordingEnricher()
+        assert process(db, claim(db), recorder) is True
+        assert recorder.received == ()
+
+    def test_vocabulary_flows_into_enrichment_most_frequent_first(self, db, make_link):
+        link_a, _, _ = make_link()
+        assert process(db, claim(db), StubEnricher()) is True
+        (seeded,) = enrichment_rows(db, link_a)
+        seeded_tags = seeded["result"]["tags"]
+
+        make_link()
+        recorder = self.RecordingEnricher()
+        assert process(db, claim(db), recorder, fetcher=text_fetcher("different page")) is True
+        # One seeded row: equal counts, so the tiebreak is alphabetical.
+        assert recorder.received == tuple(sorted(seeded_tags))

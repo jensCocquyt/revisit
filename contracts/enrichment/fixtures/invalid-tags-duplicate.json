@@ -1,0 +1,16 @@
+{
+  "contract_version": "v2",
+  "summary": "A grounded summary of what the page is and why it matters.",
+  "key_takeaway": "The one-line takeaway for list views.",
+  "tags": [
+    "angular",
+    "angular"
+  ],
+  "evidence": [
+    {
+      "quote": "Support for this release ends on May 31, 2027.",
+      "start_offset": 120,
+      "end_offset": 166
+    }
+  ]
+}

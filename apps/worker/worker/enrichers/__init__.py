@@ -5,6 +5,7 @@ from worker.enrichers.base import (
     EnrichmentInput,
     EnrichmentOutcome,
     get_enricher,
+    normalize_tags,
 )
 
-__all__ = ["Enricher", "EnrichmentInput", "EnrichmentOutcome", "get_enricher"]
+__all__ = ["Enricher", "EnrichmentInput", "EnrichmentOutcome", "get_enricher", "normalize_tags"]

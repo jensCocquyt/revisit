@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Revisit: save a link, get a grounded analysis of what it is, why it matters, and what should happen next (`none` / `read_soon` / `action` / `revisit`). A TypeScript Hono API and a Python enrichment worker share one PostgreSQL database; the `enrichment_jobs` table *is* the queue (no broker). Full MVP 1 specification: `docs/build-spec.md`.
+Revisit: save a link, get a grounded analysis of what it is and why it matters — tagged for filtering (closed-world assignment against the library's vocabulary) and, when the page ties its value to a concrete date, carrying an evidence-backed `deadline`. A TypeScript Hono API and a Python enrichment worker share one PostgreSQL database; the `enrichment_jobs` table *is* the queue (no broker). Original MVP 1 specification: `docs/build-spec.md` (the v1 intent/action taxonomy it describes was replaced by contract v2 — see `openspec/specs/enrichment-contract/`).
 
-**Built so far: foundation plus link capture.** The API serves `GET /health`, `POST /links` (validated, idempotent via the `Idempotency-Key` header, creating the link and exactly one enrichment job in a single transaction), `GET /links/:id`, plus `/openapi.json` and Swagger UI at `/docs`. The worker is still an idle heartbeat loop in `worker/__main__.py` with no job claiming; `StubEnricher` is the only enricher. Do not assume worker polling, fetching, extraction, or Bedrock exist — jobs are created but nothing consumes them yet.
+**Built so far: the full pipeline.** The API serves `GET /health`, `POST /links` (validated, idempotent via the `Idempotency-Key` header, creating the link and exactly one enrichment job in a single transaction), `GET /links/:id`, plus `/openapi.json` and Swagger UI at `/docs`. The worker claims jobs with `FOR UPDATE SKIP LOCKED` + lease, safely fetches and extracts pages, enriches through the `Enricher` seam (stub default, Bedrock opt-in), verifies evidence, and persists idempotently.
 
 ## Commands
 
@@ -67,7 +67,7 @@ Known local gotcha: `docker compose build` fails under the Docker Desktop versio
 
 The enrichment result contract is defined **natively in each language**: a Zod v4 discriminated union in `apps/api/src/contract.ts` and pydantic v2 models in `worker/contract.py`. There is deliberately **no shared schema file** (a JSON Schema existed and was removed — see `openspec/changes/contract-native-types/`). Any change to the contract shape must touch **both definitions and the fixtures together**.
 
-Parity rules both definitions follow: strict/`extra="forbid"` objects everywhere; identical enums, length limits, and required fields; the revisit invariant is **structural** — only the `revisit` variant of the discriminated union carries the `revisit` object, all other variants reject it as an unknown field. The worker validates in **JSON mode** (`validate_json`) precisely so its semantics match Zod's (date strings accepted, no scalar coercion) — don't switch it to python-mode validation.
+Parity rules both definitions follow: strict/`extra="forbid"` objects everywhere; identical length limits and required fields; `deadline` is **complete or absent** (`date`, `reason`, `source` all required within it; explicit `null` also accepted — fixture-pinned); tags are trimmed, lowercase, unique. The worker validates in **JSON mode** (`validate_json`) precisely so its semantics match Zod's (date strings accepted, no scalar coercion) — don't switch it to python-mode validation.
 
 ### Shared fixtures ARE the cross-language contract
 

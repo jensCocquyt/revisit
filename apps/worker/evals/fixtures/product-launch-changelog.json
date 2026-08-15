@@ -1,6 +1,8 @@
 {
-  "expected_save_intent": "reference",
-  "expected_recommended_action": "revisit",
-  "revisit_justified": true,
+  "expected_tags": [
+    "changelog",
+    "api"
+  ],
+  "expected_deadline": null,
   "note": "we integrate their API, watch for breaking changes"
 }

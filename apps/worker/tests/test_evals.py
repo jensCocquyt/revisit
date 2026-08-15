@@ -1,6 +1,9 @@
 """Tests for the eval command over the labelled fixture set: no database, no network."""
 
+from datetime import date
+
 import worker.evals as evals
+from worker.contract import Deadline
 from worker.enrichers import Enricher, EnrichmentInput, EnrichmentOutcome
 from worker.enrichers.stub import StubEnricher
 from worker.evals import (
@@ -35,8 +38,22 @@ class UnresolvableEvidenceEnricher(Enricher):
     def enrich(self, request: EnrichmentInput) -> EnrichmentOutcome:
         outcome = StubEnricher().enrich(request)
         bad = outcome.result.evidence[0].model_copy(update={"quote": "quote absent from page"})
-        result = outcome.result.model_copy(update={"evidence": [bad]})
+        result = outcome.result.model_copy(update={"evidence": [bad], "deadline": None})
         return EnrichmentOutcome(result=result, model_id="unresolvable")
+
+
+class AlwaysDeadlineEnricher(Enricher):
+    """Asserts a resolvable deadline on every case — a false-deadline machine."""
+
+    prompt_version = "deadline-v1"
+
+    def enrich(self, request: EnrichmentInput) -> EnrichmentOutcome:
+        outcome = StubEnricher().enrich(request)
+        deadline = Deadline(
+            date=date(2030, 6, 1), reason="fabricated", source=outcome.result.evidence[0]
+        )
+        result = outcome.result.model_copy(update={"deadline": deadline})
+        return EnrichmentOutcome(result=result, model_id="deadline")
 
 
 def stub_report() -> str:
@@ -47,24 +64,19 @@ def stub_report() -> str:
 def test_fixture_set_shape():
     cases = load_cases(FIXTURES_DIR)
     assert 10 <= len(cases) <= 15
-    assert {c.expected_recommended_action for c in cases} == {
-        "none",
-        "read_soon",
-        "action",
-        "revisit",
-    }
-    assert sum(not c.revisit_justified for c in cases) >= 2
+    assert sum(c.expected_deadline is not None for c in cases) >= 2
+    assert sum(c.expected_deadline is None for c in cases) >= 2
 
 
 def test_stub_report_is_byte_identical():
     assert stub_report() == stub_report()
 
 
-def test_gate_passes_on_stub_despite_imperfect_accuracy():
+def test_gate_passes_on_stub_despite_imperfect_quality():
     results = run_evals(load_cases(FIXTURES_DIR), StubEnricher())
     all_measures = measures(results)
-    accuracy = [m for m in all_measures if not m.gated]
-    assert any(m.rate is not None and m.rate < 1.0 for m in accuracy)
+    quality = [m for m in all_measures if not m.gated]
+    assert any(m.rate is not None and m.rate < 1.0 for m in quality)
     assert gate_failures(all_measures) == []
 
 
@@ -83,6 +95,15 @@ def test_unresolvable_evidence_fails_gate():
     results = run_evals(load_cases(FIXTURES_DIR), UnresolvableEvidenceEnricher())
     failures = gate_failures(measures(results))
     assert any("Evidence resolution rate" in f for f in failures)
+
+
+def test_false_deadlines_are_counted():
+    cases = load_cases(FIXTURES_DIR)
+    results = run_evals(cases, AlwaysDeadlineEnricher())
+    (false_deadline,) = [m for m in measures(results) if m.label == "False-deadline rate"]
+    assert false_deadline.rate == 1.0
+    # Resolvable deadlines never gate — fabrication is a quality signal, not a schema one.
+    assert gate_failures(measures(results)) == []
 
 
 def test_main_gate_exit_zero_on_stub(capsys):

@@ -1,28 +1,51 @@
 """The AI seam: an Enricher turns extracted content into a contract-valid result."""
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
-from worker.contract import NonRevisitResult, RevisitResult
+from worker.contract import TAG_MAX_LENGTH, TAGS_MAX_COUNT, EnrichmentResult
+
+_WHITESPACE = re.compile(r"\s+")
 
 
 @dataclass(frozen=True)
 class EnrichmentInput:
-    """Extracted page content plus the user's optional context."""
+    """Extracted page content plus the user's optional context.
+
+    `known_tags` is the library's existing tag vocabulary (most frequent
+    first, possibly empty) for closed-world tag assignment. It is trusted
+    user data, unlike `content`.
+    """
 
     content: str
     note: str | None = None
     goal: str | None = None
+    known_tags: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
 class EnrichmentOutcome:
-    result: NonRevisitResult | RevisitResult
+    result: EnrichmentResult
     model_id: str
     latency_ms: int | None = None
     token_usage: dict[str, int] | None = None
     diagnostics: dict[str, Any] = field(default_factory=dict)
+
+
+def normalize_tags(raw: list[str]) -> list[str]:
+    """Normalize model-produced tags before strict contract validation:
+    lowercase, trim, collapse internal whitespace, drop empties/overlong,
+    dedupe preserving order, cap at the contract maximum."""
+    seen: list[str] = []
+    for tag in raw:
+        cleaned = _WHITESPACE.sub(" ", str(tag).strip().lower())
+        if not cleaned or len(cleaned) > TAG_MAX_LENGTH:
+            continue
+        if cleaned not in seen:
+            seen.append(cleaned)
+    return seen[:TAGS_MAX_COUNT]
 
 
 class Enricher(ABC):

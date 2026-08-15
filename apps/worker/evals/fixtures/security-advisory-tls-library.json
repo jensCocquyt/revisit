@@ -1,6 +1,8 @@
 {
-  "expected_save_intent": "time_sensitive",
-  "expected_recommended_action": "action",
-  "revisit_justified": false,
+  "expected_tags": [
+    "security",
+    "tls"
+  ],
+  "expected_deadline": null,
   "note": "check whether any of our images bundle libhandshake 2.x"
 }

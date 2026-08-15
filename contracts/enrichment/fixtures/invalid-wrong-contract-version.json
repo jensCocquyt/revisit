@@ -1,12 +1,16 @@
 {
-  "contract_version": "v2",
-  "summary": "A baseline valid enrichment result used for boundary fixtures.",
-  "key_takeaway": "Baseline takeaway.",
-  "topics": [
-    "testing"
+  "contract_version": "v1",
+  "summary": "A grounded summary of what the page is and why it matters.",
+  "key_takeaway": "The one-line takeaway for list views.",
+  "tags": [
+    "angular",
+    "security"
   ],
-  "suggested_group": "Testing",
-  "save_intent": "reference",
-  "recommended_action": "none",
-  "evidence": []
+  "evidence": [
+    {
+      "quote": "Support for this release ends on May 31, 2027.",
+      "start_offset": 120,
+      "end_offset": 166
+    }
+  ]
 }

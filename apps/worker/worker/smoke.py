@@ -17,7 +17,7 @@ def main() -> int:
     if errors:
         print(f"stub smoke FAILED: {errors}")
         return 1
-    print(f"stub smoke ok: {outcome.result.recommended_action}")
+    print(f"stub smoke ok: tags={','.join(outcome.result.tags)}")
     return 0
 
 

@@ -1,14 +1,17 @@
-"""The v1 enrichment result contract as native pydantic models.
+"""The v2 enrichment result contract as native pydantic models.
 
 The contract is defined twice — here and as a Zod definition in the API
 (`apps/api/src/contract.ts`). The shared fixtures in
 `contracts/enrichment/fixtures/` keep the two definitions in agreement;
 change one side only together with the other and the fixtures.
+
+v2 is flat: tags (closed-world assigned labels) and an optional, complete
+`deadline` whose `source` quotes the page sentence asserting the date. The
+v1 enums and the revisit discriminated union are gone.
 """
 
 import json
 from datetime import date
-from functools import lru_cache
 from typing import Annotated, Any, Literal
 
 from pydantic import (
@@ -16,12 +19,14 @@ from pydantic import (
     ConfigDict,
     Field,
     StringConstraints,
-    TypeAdapter,
     ValidationError,
     model_validator,
 )
 
-CONTRACT_VERSION = "v1"
+CONTRACT_VERSION = "v2"
+
+TAG_MAX_LENGTH = 50
+TAGS_MAX_COUNT = 5
 
 
 class _StrictModel(BaseModel):
@@ -40,45 +45,36 @@ class EvidenceItem(_StrictModel):
         return self
 
 
-class RevisitSuggestion(_StrictModel):
+class Deadline(_StrictModel):
+    """A defensible date the page ties its value to. Complete or absent:
+    `source` quotes the sentence in the page text asserting the date."""
+
+    date: date
     reason: Annotated[str, StringConstraints(min_length=1, max_length=500)]
-    suggested_date: date
+    source: EvidenceItem
 
 
-class _ResultBase(_StrictModel):
-    contract_version: Literal["v1"]
+class EnrichmentResult(_StrictModel):
+    contract_version: Literal["v2"]
     summary: Annotated[str, StringConstraints(min_length=1, max_length=2000)]
     key_takeaway: Annotated[str, StringConstraints(min_length=1, max_length=500)]
-    topics: Annotated[
-        list[Annotated[str, StringConstraints(min_length=1, max_length=100)]],
-        Field(min_length=1, max_length=10),
+    tags: Annotated[
+        list[Annotated[str, StringConstraints(min_length=1, max_length=TAG_MAX_LENGTH)]],
+        Field(min_length=1, max_length=TAGS_MAX_COUNT),
     ]
-    suggested_group: Annotated[str, StringConstraints(min_length=1, max_length=100)]
-    save_intent: Literal["reference", "read_later", "time_sensitive"]
+    deadline: Deadline | None = None
     evidence: Annotated[list[EvidenceItem], Field(max_length=10)]
 
-
-class NonRevisitResult(_ResultBase):
-    recommended_action: Literal["none", "read_soon", "action"]
-
-
-class RevisitResult(_ResultBase):
-    recommended_action: Literal["revisit"]
-    revisit: RevisitSuggestion
-
-
-# The revisit invariant is structural: only the revisit variant carries the
-# suggestion, and extra="forbid" rejects it everywhere else.
-EnrichmentResult = Annotated[
-    NonRevisitResult | RevisitResult, Field(discriminator="recommended_action")
-]
-
-
-# The union type has no .model_validate(); a TypeAdapter provides it, and is
-# cached because constructing one compiles the union's validator.
-@lru_cache(maxsize=1)
-def _enrichment_result_adapter() -> TypeAdapter[Any]:
-    return TypeAdapter(EnrichmentResult)
+    @model_validator(mode="after")
+    def _tags_normalized_and_unique(self) -> "EnrichmentResult":
+        for tag in self.tags:
+            if tag != tag.strip():
+                raise ValueError(f"tag {tag!r} has leading or trailing whitespace")
+            if tag != tag.lower():
+                raise ValueError(f"tag {tag!r} must be lowercase")
+        if len(set(self.tags)) != len(self.tags):
+            raise ValueError("tags must be unique")
+        return self
 
 
 def validation_errors(result: Any) -> list[str]:
@@ -90,7 +86,7 @@ def validation_errors(result: Any) -> list[str]:
     """
     payload = result.model_dump_json() if isinstance(result, BaseModel) else json.dumps(result)
     try:
-        _enrichment_result_adapter().validate_json(payload)
+        EnrichmentResult.model_validate_json(payload)
     except ValidationError as exc:
         return [
             f"/{'/'.join(str(p) for p in error['loc'])}: {error['msg']}"
@@ -103,10 +99,10 @@ def is_valid(result: Any) -> bool:
     return not validation_errors(result)
 
 
-def parse_result(data: Any) -> NonRevisitResult | RevisitResult:
+def parse_result(data: Any) -> EnrichmentResult:
     """Parse untrusted data into a contract model, raising ValidationError.
 
     Runs in JSON mode (same semantics as validation_errors) so model output
     is judged exactly like any other JSON document crossing the contract.
     """
-    return _enrichment_result_adapter().validate_json(json.dumps(data))
+    return EnrichmentResult.model_validate_json(json.dumps(data))

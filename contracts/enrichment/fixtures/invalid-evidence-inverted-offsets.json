@@ -1,10 +1,16 @@
 {
-  "contract_version": "v1",
-  "summary": "An evidence range that ends before it starts can never resolve to stored text.",
-  "key_takeaway": "Inverted offset ranges are contract violations.",
-  "topics": ["validation"],
-  "suggested_group": "Testing",
-  "save_intent": "reference",
-  "recommended_action": "none",
-  "evidence": [{ "quote": "quoted", "start_offset": 10, "end_offset": 4 }]
+  "contract_version": "v2",
+  "summary": "A grounded summary of what the page is and why it matters.",
+  "key_takeaway": "The one-line takeaway for list views.",
+  "tags": [
+    "angular",
+    "security"
+  ],
+  "evidence": [
+    {
+      "quote": "x",
+      "start_offset": 10,
+      "end_offset": 3
+    }
+  ]
 }

@@ -1,6 +1,8 @@
 {
-  "expected_save_intent": "reference",
-  "expected_recommended_action": "revisit",
-  "revisit_justified": true,
+  "expected_tags": [
+    "pricing",
+    "api"
+  ],
+  "expected_deadline": null,
   "goal": "pick a metering vendor next quarter"
 }

@@ -1,10 +1,14 @@
 import { z } from "zod";
 
-export const CONTRACT_VERSION = "v1";
+export const CONTRACT_VERSION = "v2";
 
 // Names mirror the worker's pydantic models in apps/worker/worker/contract.py:
-// EvidenceItem, RevisitSuggestion, NonRevisitResult, RevisitResult, EnrichmentResult.
-// Keep them in sync when the contract changes.
+// EvidenceItem, Deadline, EnrichmentResult. Keep them in sync when the
+// contract changes. v2 is flat: tags plus an optional, complete deadline
+// whose source quotes the page sentence asserting the date.
+
+const TAG_MAX_LENGTH = 50;
+const TAGS_MAX_COUNT = 5;
 
 const evidenceItemSchema = z
   .strictObject({
@@ -17,43 +21,37 @@ const evidenceItemSchema = z
     path: ["end_offset"],
   });
 
-const revisitSuggestionSchema = z.strictObject({
+const deadlineSchema = z.strictObject({
+  date: z.iso.date(),
   reason: z.string().min(1).max(500),
-  suggested_date: z.iso.date(),
+  source: evidenceItemSchema,
 });
 
-const baseShape = {
-  contract_version: z.literal(CONTRACT_VERSION),
-  summary: z.string().min(1).max(2000),
-  key_takeaway: z.string().min(1).max(500),
-  topics: z.array(z.string().min(1).max(100)).min(1).max(10),
-  suggested_group: z.string().min(1).max(100),
-  save_intent: z.enum(["reference", "read_later", "time_sensitive"]),
-  evidence: z.array(evidenceItemSchema).max(10),
-};
+const tagSchema = z
+  .string()
+  .min(1)
+  .max(TAG_MAX_LENGTH)
+  .refine((tag) => tag === tag.trim(), { message: "tag has leading or trailing whitespace" })
+  .refine((tag) => tag === tag.toLowerCase(), { message: "tag must be lowercase" });
 
-const nonRevisitResultSchema = z.strictObject({
-  ...baseShape,
-  recommended_action: z.enum(["none", "read_soon", "action"]),
-});
-
-// The revisit invariant is structural: only this variant carries the revisit
-// suggestion, and strict objects reject it everywhere else.
-const revisitResultSchema = z.strictObject({
-  ...baseShape,
-  recommended_action: z.literal("revisit"),
-  revisit: revisitSuggestionSchema,
-});
-
-export const enrichmentResultSchema = z.discriminatedUnion("recommended_action", [
-  nonRevisitResultSchema,
-  revisitResultSchema,
-]);
+export const enrichmentResultSchema = z
+  .strictObject({
+    contract_version: z.literal(CONTRACT_VERSION),
+    summary: z.string().min(1).max(2000),
+    key_takeaway: z.string().min(1).max(500),
+    tags: z.array(tagSchema).min(1).max(TAGS_MAX_COUNT),
+    // .nullish(): pydantic's `Deadline | None = None` accepts both an absent
+    // field and an explicit null — mirror both (fixture-pinned).
+    deadline: deadlineSchema.nullish(),
+    evidence: z.array(evidenceItemSchema).max(10),
+  })
+  .refine((result) => new Set(result.tags).size === result.tags.length, {
+    message: "tags must be unique",
+    path: ["tags"],
+  });
 
 export type EvidenceItem = z.infer<typeof evidenceItemSchema>;
-export type RevisitSuggestion = z.infer<typeof revisitSuggestionSchema>;
-export type NonRevisitResult = z.infer<typeof nonRevisitResultSchema>;
-export type RevisitResult = z.infer<typeof revisitResultSchema>;
+export type Deadline = z.infer<typeof deadlineSchema>;
 export type EnrichmentResult = z.infer<typeof enrichmentResultSchema>;
 
 export interface ContractValidation {
@@ -62,7 +60,7 @@ export interface ContractValidation {
   data?: EnrichmentResult;
 }
 
-/** Validate an enrichment result against the v1 contract. */
+/** Validate an enrichment result against the v2 contract. */
 export function validateEnrichmentResult(result: unknown): ContractValidation {
   const parsed = enrichmentResultSchema.safeParse(result);
   if (parsed.success) {

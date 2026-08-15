@@ -1,41 +1,61 @@
 """Evidence verification before persistence.
 
-Evidence is what makes the analysis trustworthy: each claim cites a quote at
-an offset in the stored page text, so users can check the model is describing
-the real page and not hallucinating. That only holds if every citation is
-verified before it is stored.
-
-Per item: exact offsets are kept; a verbatim quote at wrong offsets is
-repaired to its first occurrence; a quote absent from the text is dropped,
-never guessed. Every persisted item's slice of the stored text equals its
-quote.
+Every persisted quote must slice the stored page text exactly: exact offsets
+are kept, a verbatim quote at wrong offsets is repaired to its first
+occurrence, and a quote absent from the text is dropped, never guessed. The
+same rule covers a deadline's source — but an unresolvable source drops the
+whole deadline, since that date may later notify the user.
 """
 
-from worker.contract import NonRevisitResult, RevisitResult
+from dataclasses import dataclass
+
+from worker.contract import EnrichmentResult, EvidenceItem
 
 
-def resolve_evidence(
-    result: NonRevisitResult | RevisitResult, text: str
-) -> tuple[NonRevisitResult | RevisitResult, int]:
-    """Return the result with only resolvable evidence, plus the drop count."""
+@dataclass(frozen=True)
+class ResolvedResult:
+    result: EnrichmentResult
+    evidence_dropped: int
+    deadline_dropped: bool
+
+
+def _resolve_item(item: EvidenceItem, text: str) -> EvidenceItem | None:
+    if text[item.start_offset : item.end_offset] == item.quote:
+        return item
+    index = text.find(item.quote)
+    if index >= 0:
+        return item.model_copy(
+            update={"start_offset": index, "end_offset": index + len(item.quote)}
+        )
+    return None
+
+
+def resolve_evidence(result: EnrichmentResult, text: str) -> ResolvedResult:
+    """Return the result with only resolvable evidence and a supported deadline."""
     kept = []
     changed = False
     for item in result.evidence:
-        if text[item.start_offset : item.end_offset] == item.quote:
-            kept.append(item)  # offsets already point at the quote
-            continue
-        changed = True
-        index = text.find(item.quote)
-        if index >= 0:
-            # Quote exists, offsets are wrong (models miscount): repair to the
-            # first verbatim occurrence.
-            kept.append(
-                item.model_copy(
-                    update={"start_offset": index, "end_offset": index + len(item.quote)}
-                )
-            )
-        # else: quote is not in the text — drop the item.
+        resolved = _resolve_item(item, text)
+        if resolved is None:
+            changed = True
+        else:
+            changed = changed or resolved is not item
+            kept.append(resolved)
     dropped = len(result.evidence) - len(kept)
+
+    deadline = result.deadline
+    deadline_dropped = False
+    if deadline is not None:
+        source = _resolve_item(deadline.source, text)
+        if source is None:
+            deadline = None
+            deadline_dropped = True
+            changed = True
+        elif source is not deadline.source:
+            deadline = deadline.model_copy(update={"source": source})
+            changed = True
+
     if not changed:
-        return result, 0
-    return result.model_copy(update={"evidence": kept}), dropped
+        return ResolvedResult(result, 0, False)
+    updated = result.model_copy(update={"evidence": kept, "deadline": deadline})
+    return ResolvedResult(updated, dropped, deadline_dropped)

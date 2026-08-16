@@ -35,4 +35,4 @@
 
 - [x] 6.1 Full worker suite (ruff format check, ruff check, pytest with `DATABASE_URL`) and API suite (biome lint, vitest with `DATABASE_URL`) green locally
 - [x] 6.2 Stack smoke: `python -m worker.smoke` produces a contract-valid v2 result; `stack-e2e` path unaffected
-- [ ] 6.3 After merge: dispatch the Bedrock eval once to set the v2 baseline and record it on the PR
+- [x] 6.3 After merge: dispatch the Bedrock eval once to set the v2 baseline and record it on the PR — baseline posted 2026-08-16 (gates 100%, deadline recall 3/3, date accuracy 3/3, specificity 9/11, tag recall 28/28)

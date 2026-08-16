@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Revisit: save a link, get a grounded analysis of what it is and why it matters — tagged for filtering (closed-world assignment against the library's vocabulary) and, when the page ties its value to a concrete date, carrying an evidence-backed `deadline`. A TypeScript Hono API and a Python enrichment worker share one PostgreSQL database; the `enrichment_jobs` table *is* the queue (no broker). Original MVP 1 specification: `docs/build-spec.md` (the v1 intent/action taxonomy it describes was replaced by contract v2 — see `openspec/changes/contract-v2/specs/` until that change is archived into `openspec/specs/`).
+Revisit: save a link, get a grounded analysis of what it is and why it matters — tagged for filtering (closed-world assignment against the library's vocabulary) and, when the page ties its value to a concrete date, carrying an evidence-backed `deadline`. A TypeScript Hono API and a Python enrichment worker share one PostgreSQL database; the `enrichment_jobs` table *is* the queue (no broker). Original MVP 1 specification: `docs/build-spec.md` (the v1 intent/action taxonomy it describes was replaced by contract v2 — see `openspec/specs/enrichment-contract/`).
 
 **Built so far: the full pipeline.** The API serves `GET /health`, `POST /links` (validated, idempotent via the `Idempotency-Key` header, creating the link and exactly one enrichment job in a single transaction), `GET /links/:id`, plus `/openapi.json` and Swagger UI at `/docs`. The worker claims jobs with `FOR UPDATE SKIP LOCKED` + lease, safely fetches and extracts pages, enriches through the `Enricher` seam (stub default, Bedrock opt-in), verifies evidence, and persists idempotently.
 

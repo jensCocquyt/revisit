@@ -97,11 +97,11 @@ def test_unresolvable_evidence_fails_gate():
     assert any("Evidence resolution rate" in f for f in failures)
 
 
-def test_false_deadlines_are_counted():
+def test_fabricated_deadlines_lower_specificity():
     cases = load_cases(FIXTURES_DIR)
     results = run_evals(cases, AlwaysDeadlineEnricher())
-    (false_deadline,) = [m for m in measures(results) if m.label == "False-deadline rate"]
-    assert false_deadline.rate == 1.0
+    (specificity,) = [m for m in measures(results) if m.label == "Deadline specificity"]
+    assert specificity.rate == 0.0
     # Resolvable deadlines never gate — fabrication is a quality signal, not a schema one.
     assert gate_failures(measures(results)) == []
 

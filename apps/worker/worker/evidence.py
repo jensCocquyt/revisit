@@ -20,6 +20,7 @@ class ResolvedResult:
 
 
 def _resolve_item(item: EvidenceItem, text: str) -> EvidenceItem | None:
+    """Return the item unchanged, a repaired copy, or None when the quote is absent."""
     if text[item.start_offset : item.end_offset] == item.quote:
         return item
     index = text.find(item.quote)

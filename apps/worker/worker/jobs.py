@@ -1,11 +1,7 @@
 """Claiming and processing over the enrichment_jobs queue.
 
-Transaction shape: claim in one short transaction; fetch, extraction, and
-enrichment run with no transaction open; content-version storage and the
-write-back (result + statuses) each use their own short transaction.
-Connections must be in autocommit mode so statements outside
-`conn.transaction()` blocks do not hold an implicit transaction open during
-slow work.
+Callers must pass autocommit connections, or statements outside
+`conn.transaction()` blocks hold an implicit transaction open during slow work.
 """
 
 import json

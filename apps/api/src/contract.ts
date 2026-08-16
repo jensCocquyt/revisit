@@ -40,8 +40,6 @@ export const enrichmentResultSchema = z
     summary: z.string().min(1).max(2000),
     key_takeaway: z.string().min(1).max(500),
     tags: z.array(tagSchema).min(1).max(TAGS_MAX_COUNT),
-    // .nullish(): pydantic's `Deadline | None = None` accepts both an absent
-    // field and an explicit null — mirror both (fixture-pinned).
     deadline: deadlineSchema.nullish(),
     evidence: z.array(evidenceItemSchema).max(10),
   })

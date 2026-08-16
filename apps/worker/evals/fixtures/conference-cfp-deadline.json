@@ -1,6 +1,8 @@
 {
-  "expected_save_intent": "time_sensitive",
-  "expected_recommended_action": "action",
-  "revisit_justified": false,
+  "expected_tags": [
+    "conference",
+    "cfp"
+  ],
+  "expected_deadline": "2026-09-30",
   "goal": "speak at one conference this year"
 }

@@ -2,10 +2,12 @@
 
 `python -m worker.evals` runs every case in `evals/fixtures/` through the
 production seam — extraction, the configured enricher, contract validation,
-evidence resolution — and prints a markdown report of the five build-spec
-measures. No database, no network with the stub. `--gate` exits non-zero
-unless the two measures the stub can prove (schema validity and evidence
-resolution) are both 100%; accuracy measures never gate.
+evidence resolution — and prints a markdown report. Gated measures (schema
+validity, evidence resolution) must be 100% under `--gate`; the quality
+measures (false-deadline rate, deadline recall, date accuracy, tag
+precision/recall) are reported only. The vocabulary passed to the enricher
+is the sorted union of all expected tags, so closed-world assignment is
+exercised and stub runs stay deterministic.
 """
 
 import argparse
@@ -20,16 +22,15 @@ from worker.evidence import resolve_evidence
 from worker.extract import extract_content
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "evals" / "fixtures"
-LABEL_KEYS = {"expected_save_intent", "expected_recommended_action", "revisit_justified"}
+LABEL_KEYS = {"expected_tags", "expected_deadline"}
 
 
 @dataclass(frozen=True)
 class EvalCase:
     name: str
     html: str
-    expected_save_intent: str
-    expected_recommended_action: str
-    revisit_justified: bool
+    expected_tags: tuple[str, ...]
+    expected_deadline: str | None
     note: str | None = None
     goal: str | None = None
 
@@ -38,8 +39,8 @@ class EvalCase:
 class CaseResult:
     case: EvalCase
     error: str | None = None  # non-None marks the case schema-invalid
-    save_intent: str | None = None
-    recommended_action: str | None = None
+    tags: tuple[str, ...] = ()
+    deadline_date: str | None = None
     evidence_total: int = 0
     evidence_resolved: int = 0
 
@@ -53,7 +54,7 @@ class Measure:
     label: str
     numerator: int
     denominator: int
-    gated: bool
+    gated: bool = False
 
     @property
     def rate(self) -> float | None:
@@ -79,9 +80,8 @@ def load_cases(fixtures_dir: Path) -> list[EvalCase]:
             EvalCase(
                 name=label_path.stem,
                 html=html_path.read_text(encoding="utf-8"),
-                expected_save_intent=labels["expected_save_intent"],
-                expected_recommended_action=labels["expected_recommended_action"],
-                revisit_justified=labels["revisit_justified"],
+                expected_tags=tuple(labels["expected_tags"]),
+                expected_deadline=labels["expected_deadline"],
                 note=labels.get("note"),
                 goal=labels.get("goal"),
             )
@@ -91,60 +91,68 @@ def load_cases(fixtures_dir: Path) -> list[EvalCase]:
     return cases
 
 
-def run_case(case: EvalCase, enricher: Enricher) -> CaseResult:
+def vocabulary(cases: list[EvalCase]) -> tuple[str, ...]:
+    return tuple(sorted({tag for case in cases for tag in case.expected_tags}))
+
+
+def run_case(case: EvalCase, enricher: Enricher, known_tags: tuple[str, ...]) -> CaseResult:
     # Snapshot content is untrusted data: it flows only through the production
     # extraction path into the enricher, exactly as in job processing.
     try:
         content = extract_content(case.html, "text/html")
         outcome = enricher.enrich(
-            EnrichmentInput(content=content.text, note=case.note, goal=case.goal)
+            EnrichmentInput(
+                content=content.text, note=case.note, goal=case.goal, known_tags=known_tags
+            )
         )
     except Exception as exc:  # noqa: BLE001 - one bad case must not abort the run
         return CaseResult(case=case, error=f"{type(exc).__name__}: {exc}"[:200])
-    result = outcome.result
-    _, dropped = resolve_evidence(result, content.text)
+    raw = outcome.result
+    resolved = resolve_evidence(raw, content.text)
+    total = len(raw.evidence) + (1 if raw.deadline else 0)
+    unresolved = resolved.evidence_dropped + (1 if resolved.deadline_dropped else 0)
+    deadline = resolved.result.deadline
     return CaseResult(
         case=case,
-        save_intent=result.save_intent,
-        recommended_action=result.recommended_action,
-        evidence_total=len(result.evidence),
-        evidence_resolved=len(result.evidence) - dropped,
+        tags=tuple(resolved.result.tags),
+        deadline_date=deadline.date.isoformat() if deadline else None,
+        evidence_total=total,
+        evidence_resolved=total - unresolved,
     )
 
 
 def run_evals(cases: list[EvalCase], enricher: Enricher) -> list[CaseResult]:
-    return [run_case(case, enricher) for case in cases]
+    known_tags = vocabulary(cases)
+    return [run_case(case, enricher, known_tags) for case in cases]
 
 
 def measures(results: list[CaseResult]) -> list[Measure]:
     valid = [r for r in results if r.valid]
-    not_justified = [r for r in valid if not r.case.revisit_justified]
+    no_deadline_expected = [r for r in valid if r.case.expected_deadline is None]
+    deadline_expected = [r for r in valid if r.case.expected_deadline is not None]
+    produced_on_expected = [r for r in deadline_expected if r.deadline_date is not None]
+    tag_hits = sum(len(set(r.tags) & set(r.case.expected_tags)) for r in valid)
     return [
         Measure("Schema validity", len(valid), len(results), gated=True),
-        Measure(
-            "Save-intent accuracy",
-            sum(r.save_intent == r.case.expected_save_intent for r in valid),
-            len(valid),
-            gated=False,
-        ),
-        Measure(
-            "Recommended-action accuracy",
-            sum(r.recommended_action == r.case.expected_recommended_action for r in valid),
-            len(valid),
-            gated=False,
-        ),
-        Measure(
-            "False-revisit rate",
-            sum(r.recommended_action == "revisit" for r in not_justified),
-            len(not_justified),
-            gated=False,
-        ),
         Measure(
             "Evidence resolution rate",
             sum(r.evidence_resolved for r in valid),
             sum(r.evidence_total for r in valid),
             gated=True,
         ),
+        Measure(
+            "False-deadline rate",
+            sum(r.deadline_date is not None for r in no_deadline_expected),
+            len(no_deadline_expected),
+        ),
+        Measure("Deadline recall", len(produced_on_expected), len(deadline_expected)),
+        Measure(
+            "Date accuracy",
+            sum(r.deadline_date == r.case.expected_deadline for r in produced_on_expected),
+            len(produced_on_expected),
+        ),
+        Measure("Tag precision", tag_hits, sum(len(r.tags) for r in valid)),
+        Measure("Tag recall", tag_hits, sum(len(r.case.expected_tags) for r in valid)),
     ]
 
 
@@ -174,23 +182,20 @@ def render_report(
         "",
         "## Cases",
         "",
-        "| Case | Schema | Save intent (got / expected) | Action (got / expected)"
-        " | Revisit justified | Evidence resolved |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| Case | Schema | Tags (got / expected) | Deadline (got / expected) | Evidence resolved |",
+        "| --- | --- | --- | --- | --- |",
     ]
     for r in results:
         if r.valid:
             lines.append(
-                f"| {r.case.name} | ok | {r.save_intent} / {r.case.expected_save_intent}"
-                f" | {r.recommended_action} / {r.case.expected_recommended_action}"
-                f" | {'yes' if r.case.revisit_justified else 'no'}"
+                f"| {r.case.name} | ok | {', '.join(r.tags)} / {', '.join(r.case.expected_tags)}"
+                f" | {r.deadline_date or '-'} / {r.case.expected_deadline or '-'}"
                 f" | {r.evidence_resolved}/{r.evidence_total} |"
             )
         else:
             lines.append(
-                f"| {r.case.name} | INVALID: {r.error} | - / {r.case.expected_save_intent}"
-                f" | - / {r.case.expected_recommended_action}"
-                f" | {'yes' if r.case.revisit_justified else 'no'} | - |"
+                f"| {r.case.name} | INVALID: {r.error} | - / {', '.join(r.case.expected_tags)}"
+                f" | - / {r.case.expected_deadline or '-'} | - |"
             )
     return "\n".join(lines) + "\n"
 

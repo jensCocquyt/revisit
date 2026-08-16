@@ -1,11 +1,7 @@
 """Claiming and processing over the enrichment_jobs queue.
 
-Transaction shape: claim in one short transaction; fetch, extraction, and
-enrichment run with no transaction open; content-version storage and the
-write-back (result + statuses) each use their own short transaction.
-Connections must be in autocommit mode so statements outside
-`conn.transaction()` blocks do not hold an implicit transaction open during
-slow work.
+Callers must pass autocommit connections, or statements outside
+`conn.transaction()` blocks hold an implicit transaction open during slow work.
 """
 
 import json
@@ -17,7 +13,7 @@ import psycopg
 
 from worker import safe_fetch
 from worker.content import store_content_version
-from worker.contract import NonRevisitResult, RevisitResult
+from worker.contract import EnrichmentResult
 from worker.enrichers import Enricher, EnrichmentInput, EnrichmentOutcome
 from worker.errors import EnricherError, FetchTerminalError, FetchTransientError
 from worker.evidence import resolve_evidence
@@ -28,6 +24,7 @@ log = logging.getLogger("worker")
 
 BACKOFF_BASE_SECONDS = 5.0
 BACKOFF_CAP_SECONDS = 60.0
+TAG_VOCABULARY_LIMIT = 100
 
 Fetcher = Callable[[str], FetchedPage]
 
@@ -58,6 +55,19 @@ class ClaimedJob:
 
 def backoff_seconds(attempts: int) -> float:
     return min(BACKOFF_BASE_SECONDS * 2**attempts, BACKOFF_CAP_SECONDS)
+
+
+def _tag_vocabulary(conn: psycopg.Connection) -> tuple[str, ...]:
+    # Closed-world tag input: the library's tags, most used first. Runs in
+    # autocommit like all reads around slow work.
+    rows = conn.execute(
+        """
+        SELECT tag FROM enrichments, jsonb_array_elements_text(result->'tags') AS tag
+        GROUP BY tag ORDER BY count(*) DESC, tag LIMIT %s
+        """,
+        (TAG_VOCABULARY_LIMIT,),
+    ).fetchall()
+    return tuple(row[0] for row in rows)
 
 
 def claim_one(
@@ -111,9 +121,12 @@ def process_one(
         return False
 
     content_version_id = store_content_version(conn, job.link_id, content)
+    known_tags = _tag_vocabulary(conn)
 
     try:
-        outcome = enricher.enrich(EnrichmentInput(content=content.text, note=note, goal=goal))
+        outcome = enricher.enrich(
+            EnrichmentInput(content=content.text, note=note, goal=goal, known_tags=known_tags)
+        )
     except EnricherError as exc:
         _fail(conn, job, str(exc), max_attempts=max_attempts, worker_id=worker_id)
         return False
@@ -122,9 +135,15 @@ def process_one(
         _fail(conn, job, f"enrich_error: {detail}", max_attempts=max_attempts, worker_id=worker_id)
         return False
 
-    result, evidence_dropped = resolve_evidence(outcome.result, content.text)
-    if evidence_dropped:
-        _log_event("evidence dropped", job, evidence_dropped=evidence_dropped)
+    resolved = resolve_evidence(outcome.result, content.text)
+    result = resolved.result
+    if resolved.evidence_dropped:
+        _log_event("evidence dropped", job, evidence_dropped=resolved.evidence_dropped)
+    if resolved.deadline_dropped:
+        _log_event("deadline dropped", job)
+    new_tags = [tag for tag in result.tags if tag not in known_tags]
+    if new_tags:
+        _log_event("new tags", job, tags=",".join(new_tags))
     return _complete(
         conn,
         job,
@@ -141,7 +160,7 @@ def _complete(
     conn: psycopg.Connection,
     job: ClaimedJob,
     outcome: EnrichmentOutcome,
-    result: NonRevisitResult | RevisitResult,
+    result: EnrichmentResult,
     content: ExtractedContent,
     content_version_id: str,
     *,

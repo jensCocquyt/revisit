@@ -1,0 +1,25 @@
+{
+  "contract_version": "v2",
+  "summary": "A grounded summary of what the page is and why it matters.",
+  "key_takeaway": "The one-line takeaway for list views.",
+  "tags": [
+    "angular",
+    "security"
+  ],
+  "evidence": [
+    {
+      "quote": "Support for this release ends on May 31, 2027.",
+      "start_offset": 120,
+      "end_offset": 166
+    }
+  ],
+  "deadline": {
+    "date": "2027-02-29",
+    "reason": "Angular 17 support ends; migrate before this date.",
+    "source": {
+      "quote": "Support for this release ends on May 31, 2027.",
+      "start_offset": 120,
+      "end_offset": 166
+    }
+  }
+}

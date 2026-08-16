@@ -1,6 +1,8 @@
 {
-  "expected_save_intent": "time_sensitive",
-  "expected_recommended_action": "action",
-  "revisit_justified": false,
+  "expected_tags": [
+    "grants",
+    "open source"
+  ],
+  "expected_deadline": "2026-10-15",
   "goal": "find funding for maintaining our parser library"
 }

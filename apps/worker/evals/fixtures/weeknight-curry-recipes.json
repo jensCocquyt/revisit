@@ -1,5 +1,7 @@
 {
-  "expected_save_intent": "read_later",
-  "expected_recommended_action": "none",
-  "revisit_justified": false
+  "expected_tags": [
+    "recipes",
+    "cooking"
+  ],
+  "expected_deadline": null
 }

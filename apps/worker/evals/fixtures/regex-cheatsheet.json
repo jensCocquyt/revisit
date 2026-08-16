@@ -1,5 +1,7 @@
 {
-  "expected_save_intent": "reference",
-  "expected_recommended_action": "none",
-  "revisit_justified": false
+  "expected_tags": [
+    "regex",
+    "reference"
+  ],
+  "expected_deadline": null
 }

@@ -10,6 +10,7 @@ SAMPLE_INPUTS = [
     EnrichmentInput(content=""),
     EnrichmentInput(content="x" * 10_000, note="huge page"),
     EnrichmentInput(content="Release announcement for Q4.", goal="interview preparation"),
+    EnrichmentInput(content="Tagged content.", known_tags=("angular", "security", "recipes")),
 ]
 
 
@@ -39,6 +40,13 @@ def test_note_and_goal_affect_result():
     assert plain.result != with_note.result
 
 
+def test_vocabulary_tags_are_used_when_provided():
+    outcome = StubEnricher().enrich(
+        EnrichmentInput(content="some page", known_tags=("angular", "security"))
+    )
+    assert set(outcome.result.tags) <= {"angular", "security"}
+
+
 def test_stub_is_default_enricher():
     assert isinstance(get_enricher("stub"), StubEnricher)
 
@@ -48,7 +56,7 @@ def test_stub_satisfies_the_seam():
 
 
 def test_stub_declares_prompt_version():
-    assert StubEnricher.prompt_version == "stub-v1"
+    assert StubEnricher.prompt_version == "stub-v2"
 
 
 def test_bedrock_is_selectable(monkeypatch: pytest.MonkeyPatch):

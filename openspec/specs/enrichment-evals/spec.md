@@ -1,11 +1,11 @@
 # enrichment-evals Specification
 
 ## Purpose
-The labelled offline evaluation set and the `python -m worker.evals` command: stored HTML snapshots with expected classifications, run through the production extraction/enrichment/evidence path against the configured enricher, reported as the five build-spec measures with deterministic output for the stub and a `--gate` mode for CI.
+The labelled offline evaluation set and the `python -m worker.evals` command: stored HTML snapshots with expected tags and deadlines, run through the production extraction/enrichment/evidence path against the configured enricher, reported as higher-is-better measures with deterministic output for the stub and a `--gate` mode for CI.
 
 ## Requirements
 ### Requirement: Labelled offline evaluation set
-The repository SHALL contain a labelled evaluation set of stored HTML page snapshots (approximately 10–15 cases) under `apps/worker/evals/fixtures/`. Each case SHALL pair a snapshot file with a label file recording the expected `save_intent`, the expected `recommended_action`, and whether a revisit is justified, and MAY include `note` and `goal` inputs. The set SHALL span all four `recommended_action` classes and SHALL include multiple cases where a revisit is not justified. Snapshots are committed files; the eval SHALL never fetch from the network. Snapshot content SHALL be treated as untrusted data, flowing only through the production extraction path.
+The repository SHALL contain a labelled evaluation set of stored HTML page snapshots (approximately 10–15 cases) under `apps/worker/evals/fixtures/`. Each case SHALL pair a snapshot file with a label file recording `expected_tags` (the tags a correct enrichment assigns) and `expected_deadline` (an ISO date, or null when no deadline is defensible), and MAY include `note` and `goal` inputs. The set SHALL include multiple cases with a defensible deadline and multiple without. Snapshots are committed files; the eval SHALL never fetch from the network. Snapshot content SHALL be treated as untrusted data, flowing only through the production extraction path.
 
 #### Scenario: Cases are self-contained pairs
 - **WHEN** a new evaluation case is added
@@ -31,12 +31,17 @@ The repository SHALL contain a labelled evaluation set of stored HTML page snaps
 - **WHEN** the eval runs
 - **THEN** that case is recorded as schema-invalid, excluded from accuracy measures, and the remaining cases still run and the report is still produced
 
-### Requirement: Five-measure report
-The eval SHALL report the five build-spec measures: schema validity rate, save-intent accuracy, recommended-action accuracy, false-revisit rate (fraction of cases labelled not-revisit-justified where the enricher recommends `revisit`), and evidence resolution rate (resolvable evidence items over total emitted evidence items, where offset-repaired items count as resolved and dropped items as unresolved). The report SHALL be printed to stdout as a markdown table including per-case results.
+### Requirement: Measure report
+The eval SHALL report: schema validity rate; evidence resolution rate (all evidence items including deadline sources; offset-repaired counts as resolved, dropped as unresolved); deadline recall (fraction of cases with an expected date where a deadline was produced); **deadline specificity** (fraction of cases labelled `expected_deadline: null` correctly left undated) as the headline quality measure; date accuracy (fraction of produced deadlines, on cases with an expected date, whose date matches exactly); and tag precision and recall (set overlap of produced vs expected tags, aggregated over valid cases). All measures SHALL be oriented so that higher is better and 100% is perfect. The report SHALL be printed to stdout as a markdown table including per-case results.
 
-#### Scenario: Report covers all five measures
+#### Scenario: Report covers all measures
 - **WHEN** the eval completes
-- **THEN** stdout contains a markdown report with all five measures and a per-case breakdown
+- **THEN** stdout contains a markdown report with schema validity, evidence resolution, deadline recall, deadline specificity, date accuracy, and tag precision/recall, plus a per-case breakdown
+
+#### Scenario: Fabricated deadlines lower specificity
+- **GIVEN** a case labelled `expected_deadline: null` for which the enricher asserts a deadline
+- **WHEN** the eval scores the run
+- **THEN** the case counts against deadline specificity
 
 ### Requirement: Deterministic report for the stub
 With the stub enricher, repeated runs over the same evaluation set SHALL produce byte-identical report output.

@@ -4,10 +4,10 @@
 production seam — extraction, the configured enricher, contract validation,
 evidence resolution — and prints a markdown report. Gated measures (schema
 validity, evidence resolution) must be 100% under `--gate`; the quality
-measures (false-deadline rate, deadline recall, date accuracy, tag
-precision/recall) are reported only. The vocabulary passed to the enricher
-is the sorted union of all expected tags, so closed-world assignment is
-exercised and stub runs stay deterministic.
+measures (deadline recall/specificity, date accuracy, tag precision/recall)
+are reported only, all higher-is-better. The vocabulary passed to the
+enricher is the sorted union of all expected tags, so closed-world
+assignment is exercised and stub runs stay deterministic.
 """
 
 import argparse
@@ -140,12 +140,12 @@ def measures(results: list[CaseResult]) -> list[Measure]:
             sum(r.evidence_total for r in valid),
             gated=True,
         ),
+        Measure("Deadline recall", len(produced_on_expected), len(deadline_expected)),
         Measure(
-            "False-deadline rate",
-            sum(r.deadline_date is not None for r in no_deadline_expected),
+            "Deadline specificity",
+            sum(r.deadline_date is None for r in no_deadline_expected),
             len(no_deadline_expected),
         ),
-        Measure("Deadline recall", len(produced_on_expected), len(deadline_expected)),
         Measure(
             "Date accuracy",
             sum(r.deadline_date == r.case.expected_deadline for r in produced_on_expected),

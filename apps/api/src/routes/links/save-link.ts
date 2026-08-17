@@ -84,6 +84,7 @@ export const idempotencyKeyHeaderSchema = z.object({
 const saveLinkRoute = createRoute({
   method: "post",
   path: "/links",
+  security: [{ ApiKey: [] }],
   request: {
     headers: idempotencyKeyHeaderSchema,
     body: {
@@ -101,6 +102,7 @@ const saveLinkRoute = createRoute({
       content: { "application/json": { schema: linkResponseSchema } },
     },
     400: jsonError("Invalid body or missing Idempotency-Key header; nothing was stored"),
+    401: jsonError("Missing or wrong x-api-key while the deployment configures one"),
     409: jsonError("Idempotency-Key was already used with a different request"),
     500: jsonError("Submission failed; neither link nor job was stored"),
   },

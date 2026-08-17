@@ -14,3 +14,9 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
+
+# Terraform (lock files are committed; local state of the bootstrap root is not)
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars

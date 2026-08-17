@@ -24,6 +24,7 @@ export const linkIdParamSchema = z.object({
 const getLinkRoute = createRoute({
   method: "get",
   path: "/links/{id}",
+  security: [{ ApiKey: [] }],
   request: { params: linkIdParamSchema },
   responses: {
     200: {
@@ -31,6 +32,7 @@ const getLinkRoute = createRoute({
       content: { "application/json": { schema: linkResponseSchema } },
     },
     400: jsonError("Malformed link id"),
+    401: jsonError("Missing or wrong x-api-key while the deployment configures one"),
     404: jsonError("No link with this id"),
   },
 });

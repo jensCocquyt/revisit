@@ -118,3 +118,23 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose down -v
+
+  # Offline only: no backend init, no credentials. The merge gate never
+  # touches AWS; deploys happen in deploy.yml on manual dispatch.
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Format check
+        run: terraform fmt -check -recursive terraform/
+      - name: Validate bootstrap root
+        working-directory: terraform/bootstrap
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+      - name: Validate demo root
+        working-directory: terraform/demo
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate

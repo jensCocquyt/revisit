@@ -1,8 +1,11 @@
 name: Bedrock eval
 
-# Manual-dispatch only: never scheduled, never a required check. The merge-gating
-# CI workflow (ci.yml) stays fully offline and credential-free; this one assumes
-# a scoped AWS role via OIDC and publishes the full five-measure report.
+# Never a required check. The merge-gating CI workflow (ci.yml) stays fully
+# offline and credential-free; this one assumes a scoped AWS role via OIDC and
+# publishes the full five-measure report. Runs on manual dispatch, weekly, and
+# on main-branch pushes that touch the eval set or the enrichers; scheduled
+# and push runs read the model id from the BEDROCK_MODEL_ID repository
+# variable, dispatch inputs override.
 on:
   workflow_dispatch:
     inputs:
@@ -15,6 +18,14 @@ on:
         required: true
         default: eu-west-1
         type: string
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  push:
+    branches: [main]
+    paths:
+      - apps/worker/worker/evals.py
+      - apps/worker/evals/**
+      - apps/worker/worker/enrichers/**
 
 permissions:
   id-token: write
@@ -26,11 +37,19 @@ jobs:
     defaults:
       run:
         working-directory: apps/worker
+    env:
+      BEDROCK_MODEL_ID: ${{ inputs.model_id || vars.BEDROCK_MODEL_ID }}
+      AWS_REGION: ${{ inputs.aws_region || 'eu-west-1' }}
     steps:
       - name: Require the OIDC role variable
         if: ${{ vars.AWS_EVAL_ROLE_ARN == '' }}
         run: |
           echo "::error::Repository variable AWS_EVAL_ROLE_ARN is not set. Complete the one-time AWS OIDC setup in docs/runbook.md (section 'GitHub → AWS OIDC prerequisite') and set the variable to the role ARN."
+          exit 1
+      - name: Require a model id
+        if: ${{ env.BEDROCK_MODEL_ID == '' }}
+        run: |
+          echo "::error::No model id: scheduled and push runs read the BEDROCK_MODEL_ID repository variable, which is not set. Set it, or dispatch the workflow manually with a model_id input."
           exit 1
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -38,12 +57,11 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_EVAL_ROLE_ARN }}
-          aws-region: ${{ inputs.aws_region }}
+          aws-region: ${{ env.AWS_REGION }}
       - run: uv sync --frozen
       - name: Run the eval against Bedrock
         env:
           ENRICHER: bedrock
-          BEDROCK_MODEL_ID: ${{ inputs.model_id }}
         run: uv run python -m worker.evals | tee eval-report.md
       - name: Publish report as job summary
         run: cat eval-report.md >> "$GITHUB_STEP_SUMMARY"

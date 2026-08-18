@@ -155,15 +155,15 @@ AWS setup:
 ## Bootstrap and deploy role
 
 `terraform/bootstrap` holds the durable prerequisites of the cloud demo
-environment; `terraform/demo` holds the environment itself (ephemeral by
+environment; `terraform/stack` holds the environment itself (ephemeral by
 design — `terraform destroy` → `apply` round-trips cleanly). Bootstrap is
 applied once by a human with their own credentials, because a deploy role
 cannot create the state bucket its own state would live in. It creates:
 
-- the S3 state bucket for the demo root (versioned, encrypted, private —
+- the S3 state bucket for the stack root (versioned, encrypted, private —
   demo state contains the generated database password and API key);
 - the three ECR repositories (`revisit/api`, `revisit/worker`,
-  `revisit/migrate`), kept outside the demo root so destroying the
+  `revisit/migrate`), kept outside the stack root so destroying the
   environment never deletes images;
 - the `revisit-demo-deploy` IAM role that `.github/workflows/deploy.yml`
   assumes via the same OIDC provider and id-embedded `sub` claim documented
@@ -181,7 +181,7 @@ repository variables the deploy workflow requires: `AWS_DEPLOY_ROLE_ARN` and
 `TF_STATE_BUCKET` (both terraform outputs), plus `BEDROCK_MODEL_ID`.
 
 The deploy role's policy is service-scoped, not action-scoped: full access to
-the services the demo root manages, with resource scoping where it is cheap
+the services the stack root manages, with resource scoping where it is cheap
 (IAM restricted to the `/revisit-demo/` role path, S3 to the state bucket).
 A true least-action policy for a Terraform apply role is unmaintainable; the
 honest trade-off is documented scoping plus no long-lived credentials.

@@ -13,14 +13,14 @@
 - [ ] 2.2 Apply bootstrap with operator credentials; set repo variables `AWS_DEPLOY_ROLE_ARN` and `BEDROCK_MODEL_ID`
 - [x] 2.3 Document bootstrap in the runbook: what it creates, why it is not ephemeral, the deploy-role scoping decision
 
-## 3. Terraform demo root (ephemeral environment)
+## 3. Terraform stack root (ephemeral environment)
 
 - [x] 3.1 Networking: VPC, two public subnets across AZs, internet gateway, route tables; security groups for ALB, API task, worker task, migrate task, RDS (task-SG + operator-CIDR var on 5432); no NAT
 - [x] 3.2 RDS PostgreSQL: db.t4g.micro single-AZ gp3, `publicly_accessible` with SG gating, master password via `random_password` → Secrets Manager (`recovery_window_in_days = 0`), full `DATABASE_URL` secret assembled for task injection, `skip_final_snapshot`
 - [x] 3.3 ECS: cluster, log groups with retention, execution role (ECR pull, logs, secret read), worker task role (`bedrock:InvokeModel` only), API task with no task-role permissions; task definitions injecting `DATABASE_URL` via `secrets` and setting `ENRICHER=bedrock`, `BEDROCK_MODEL_ID`, `AWS_REGION` for the worker
 - [x] 3.4 ALB: HTTP :80 → API :3000, health check `GET /health`, API service registered; outputs for ALB URL and sensitive `api_key`
 - [x] 3.5 API key: `random_password` → Secrets Manager → API task env via `secrets`; migrate task definition (dbmate image, same secret)
-- [x] 3.6 S3 backend with `use_lockfile` for the demo root; `terraform fmt`/`validate` clean
+- [x] 3.6 S3 backend with `use_lockfile` for the stack root; `terraform fmt`/`validate` clean
 
 ## 4. Migrate image and CI terraform job (offline)
 
@@ -35,7 +35,7 @@
 
 ## 6. Observability
 
-- [x] 6.1 Metric filters in the demo root: `job failed` (dimension `error_code`), `deadline dropped`, `evidence dropped` over the worker log group
+- [x] 6.1 Metric filters in the stack root: `job failed` (dimension `error_code`), `deadline dropped`, `evidence dropped` over the worker log group
 - [x] 6.2 Dashboard (failures by error code, drop counts, log widgets for both services) and one no-action alarm on failed-job count
 
 ## 7. Scheduled eval

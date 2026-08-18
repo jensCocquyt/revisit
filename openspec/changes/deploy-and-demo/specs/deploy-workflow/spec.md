@@ -17,7 +17,7 @@ A `workflow_dispatch` GitHub Actions workflow SHALL build and push the API, work
 
 #### Scenario: Teardown by dispatch
 - **WHEN** the workflow is dispatched with the destroy option
-- **THEN** it destroys the demo root instead of applying it, leaving the bootstrap resources intact
+- **THEN** it destroys the stack root instead of applying it, leaving the bootstrap resources intact
 
 ### Requirement: Migrations run in-cloud as a deliberate deploy step
 Database migrations against RDS SHALL run as a one-off ECS task using a dedicated migrate image (dbmate plus the repository's migration files), invoked by the deploy workflow, which SHALL wait for the task and fail the deploy if migrations exit non-zero. Running migrations from a developer machine over a tunnel SHALL NOT be a documented path.

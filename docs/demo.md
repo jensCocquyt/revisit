@@ -9,7 +9,7 @@ contrast that replaces them is **deadline present vs deadline absent**.
 ## Setup
 
 ```bash
-cd terraform/demo
+cd terraform/stack
 terraform init -backend-config="bucket=$TF_STATE_BUCKET" -backend-config="region=eu-west-1"
 export BASE_URL=$(terraform output -raw api_url)
 export API_KEY=$(terraform output -raw api_key)

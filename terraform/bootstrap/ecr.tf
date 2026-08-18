@@ -1,4 +1,4 @@
-# Image repositories live in bootstrap, not the demo root, so destroying the
+# Image repositories live in bootstrap, not the stack root, so destroying the
 # environment never deletes images: destroy → apply needs no rebuild.
 
 locals {

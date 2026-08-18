@@ -1,4 +1,4 @@
-# State backend for the demo root. Versioned so a bad state write is
+# State backend for the stack root. Versioned so a bad state write is
 # recoverable; locking uses S3-native lock files (no DynamoDB table needed).
 
 resource "aws_s3_bucket" "tfstate" {

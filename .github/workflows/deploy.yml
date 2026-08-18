@@ -75,7 +75,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform init
-        working-directory: terraform/demo
+        working-directory: terraform/stack
         run: >-
           terraform init -input=false
           -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
@@ -83,7 +83,7 @@ jobs:
 
       - name: Terraform apply
         if: ${{ !inputs.destroy }}
-        working-directory: terraform/demo
+        working-directory: terraform/stack
         run: >-
           terraform apply -auto-approve -input=false
           -var "image_tag=$GITHUB_SHA"
@@ -92,7 +92,7 @@ jobs:
 
       - name: Run migrations as a one-off ECS task
         if: ${{ !inputs.destroy }}
-        working-directory: terraform/demo
+        working-directory: terraform/stack
         run: |
           cluster=$(terraform output -raw cluster_name)
           task_def=$(terraform output -raw migrate_task_definition_arn)
@@ -117,7 +117,7 @@ jobs:
 
       - name: Wait for stable services and print the URL
         if: ${{ !inputs.destroy }}
-        working-directory: terraform/demo
+        working-directory: terraform/stack
         run: |
           cluster=$(terraform output -raw cluster_name)
           aws ecs wait services-stable --cluster "$cluster" --services api worker
@@ -128,12 +128,12 @@ jobs:
             echo ""
             echo "- API: $url"
             echo "- Swagger UI: $url/docs"
-            echo '- API key: `terraform output -raw api_key` (from terraform/demo with the same backend config)'
+            echo '- API key: `terraform output -raw api_key` (from terraform/stack with the same backend config)'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Terraform destroy
         if: ${{ inputs.destroy }}
-        working-directory: terraform/demo
+        working-directory: terraform/stack
         run: >-
           terraform destroy -auto-approve -input=false
           -var "image_tag=unused"

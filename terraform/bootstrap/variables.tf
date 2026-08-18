@@ -18,7 +18,7 @@ variable "github_sub_claim" {
 }
 
 variable "iam_path" {
-  description = "Path for all IAM roles the demo root creates; the deploy role's IAM permissions are scoped to it."
+  description = "Path for all IAM roles the stack root creates; the deploy role's IAM permissions are scoped to it."
   type        = string
   default     = "/revisit-demo/"
 }

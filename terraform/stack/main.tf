@@ -1,4 +1,4 @@
-# Demo root: the entire runtime environment, ephemeral by design. Everything
+# Stack root: the entire runtime environment, ephemeral by design. Everything
 # here must survive `terraform destroy` → `terraform apply` with no manual
 # cleanup. Durable prerequisites (state bucket, ECR, deploy role) live in
 # ../bootstrap.

@@ -12,7 +12,7 @@ apps/worker/       Python enrichment worker
 contracts/         shared contract fixtures (cross-language conformance suite)
 db/migrations/     plain SQL migrations (dbmate)
 docker-compose.yml local development stack
-terraform/         AWS demo environment (bootstrap = durable, demo = ephemeral)
+terraform/         AWS demo environment (bootstrap = durable, stack = ephemeral runtime)
 ```
 
 ## Prerequisites
@@ -69,12 +69,12 @@ The stack runs on AWS as an **ephemeral demo environment**: provision it, run th
 
 One-time setup (operator credentials): apply `terraform/bootstrap` (state bucket, ECR repositories, deploy role) and set the repository variables `AWS_DEPLOY_ROLE_ARN`, `TF_STATE_BUCKET`, and `BEDROCK_MODEL_ID` — see the runbook's "Bootstrap and deploy role" section.
 
-Deploy: dispatch the **Deploy** workflow. It builds and pushes SHA-tagged images, applies `terraform/demo`, runs migrations as a one-off ECS task, waits for stable services, and prints the API URL. The demo walkthrough is [docs/demo.md](docs/demo.md).
+Deploy: dispatch the **Deploy** workflow. It builds and pushes SHA-tagged images, applies `terraform/stack`, runs migrations as a one-off ECS task, waits for stable services, and prints the API URL. The demo walkthrough is [docs/demo.md](docs/demo.md).
 
 Teardown: dispatch **Deploy** with `destroy: true`, or locally:
 
 ```bash
-cd terraform/demo && terraform destroy
+cd terraform/stack && terraform destroy
 ```
 
 ### Architecture decisions

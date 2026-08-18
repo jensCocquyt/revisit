@@ -3,11 +3,11 @@
 ## ADDED Requirements
 
 ### Requirement: Terraform provisions the full demo environment from zero
-The cloud environment SHALL be defined entirely in Terraform, split into a durable bootstrap root (state bucket, ECR repositories, deploy role) and an ephemeral demo root (everything else: networking, ECS Fargate services for API and worker, RDS PostgreSQL, load balancer, secrets, IAM task roles, log groups). Applying the demo root against an account holding only the bootstrap resources SHALL produce a working environment with no manual console steps.
+The cloud environment SHALL be defined entirely in Terraform, split into a durable bootstrap root (state bucket, ECR repositories, deploy role) and an ephemeral stack root (everything else: networking, ECS Fargate services for API and worker, RDS PostgreSQL, load balancer, secrets, IAM task roles, log groups). Applying the stack root against an account holding only the bootstrap resources SHALL produce a working environment with no manual console steps.
 
 #### Scenario: Provision from zero
 - **GIVEN** an AWS account containing only the bootstrap resources and pushed images
-- **WHEN** the demo root is applied
+- **WHEN** the stack root is applied
 - **THEN** the API becomes reachable at the load balancer URL and reports a healthy `GET /health` once migrations have run
 
 #### Scenario: Destroy and re-apply round-trips cleanly

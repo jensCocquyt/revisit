@@ -22,9 +22,9 @@ The stack runs locally under Docker Compose and in CI, entirely offline. AWS exi
 
 ## Decisions
 
-### D1. Two Terraform roots: `bootstrap` (durable) and `demo` (ephemeral)
+### D1. Two Terraform roots: `bootstrap` (durable) and `stack` (ephemeral)
 
-`terraform/bootstrap/` is applied once by a human with their own credentials and holds everything that must survive teardown: the S3 state bucket, the ECR repositories (api, worker, migrate), and the GitHub deploy role + policies (reusing the existing OIDC provider from the eval setup). `terraform/demo/` holds the entire runtime environment and is the thing that round-trips through `destroy`/`apply`.
+`terraform/bootstrap/` is applied once by a human with their own credentials and holds everything that must survive teardown: the S3 state bucket, the ECR repositories (api, worker, migrate), and the GitHub deploy role + policies (reusing the existing OIDC provider from the eval setup). `terraform/stack/` holds the entire runtime environment and is the thing that round-trips through `destroy`/`apply`.
 
 **Why:** solves the chicken-and-egg (the deploy role can't create the bucket its own state lives in), and keeps images and state out of the blast radius so `destroy` → `apply` needs no image rebuild. Alternative — a single root with `prevent_destroy` lifecycle guards — rejected: it makes `destroy` fail midway instead of cleanly separating durable from ephemeral.
 
@@ -54,7 +54,7 @@ A third image (`db/Dockerfile`: `FROM ghcr.io/amacneil/dbmate:2`, `COPY db/migra
 
 ### D6. Deploy workflow: `deploy.yml`, OIDC, service-scoped deploy role
 
-New `workflow_dispatch`-only `.github/workflows/deploy.yml`: assume the deploy role via OIDC (id-embedded `sub` format from the runbook, pinned to this repo) → build and push the three images to ECR tagged with the git SHA → `terraform apply` on `terraform/demo` with the image tag as a variable → run the migrate task and wait → wait for services stable → print the ALB URL. A separate dispatch input (`destroy: true`) runs `terraform destroy` instead, making teardown a one-click workflow too.
+New `workflow_dispatch`-only `.github/workflows/deploy.yml`: assume the deploy role via OIDC (id-embedded `sub` format from the runbook, pinned to this repo) → build and push the three images to ECR tagged with the git SHA → `terraform apply` on `terraform/stack` with the image tag as a variable → run the migrate task and wait → wait for services stable → print the ALB URL. A separate dispatch input (`destroy: true`) runs `terraform destroy` instead, making teardown a one-click workflow too.
 
 The deploy role's policy is **service-scoped, not action-scoped**: full access to the services Terraform manages (EC2-networking, ECS, ECR, RDS, ELB, Logs, Secrets Manager, `iam:*` restricted to a resource path prefix `/revisit-demo/`, S3 restricted to the state bucket). A true least-action policy for a Terraform apply role is unmaintainable at this scale; the honest, documented trade-off is resource/path scoping plus no long-lived keys. The eval role stays separate and Bedrock-only.
 
@@ -99,7 +99,7 @@ One dashboard (failure counts by error code, drop counts, plus log-insights widg
 ## Migration Plan
 
 1. Human applies `terraform/bootstrap` once (state bucket, ECR, deploy role); sets repo variables (`AWS_DEPLOY_ROLE_ARN`, `BEDROCK_MODEL_ID`).
-2. Dispatch `deploy.yml` → images pushed, `terraform/demo` applied, migrations run, services stable, ALB URL printed.
+2. Dispatch `deploy.yml` → images pushed, `terraform/stack` applied, migrations run, services stable, ALB URL printed.
 3. Run the demo script against the URL; run the Bruno cloud environment.
 4. Teardown: dispatch `deploy.yml` with `destroy: true` (or `terraform destroy` locally). Re-provision at will — merge gate is exactly this round trip.
 

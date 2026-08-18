@@ -133,8 +133,8 @@ jobs:
         run: |
           terraform init -backend=false -input=false
           terraform validate
-      - name: Validate demo root
-        working-directory: terraform/demo
+      - name: Validate stack root
+        working-directory: terraform/stack
         run: |
           terraform init -backend=false -input=false
           terraform validate

@@ -1,7 +1,7 @@
 # The role deploy.yml assumes via OIDC. Deliberately service-scoped rather
 # than action-scoped: a true least-action policy for a Terraform apply role is
 # unmaintainable, so the honest trade-off is full access to the services the
-# demo root manages, resource-scoped where cheap (IAM path, state bucket), and
+# stack root manages, resource-scoped where cheap (IAM path, state bucket), and
 # no long-lived credentials anywhere. The Bedrock eval role stays separate.
 
 resource "aws_iam_role" "deploy" {

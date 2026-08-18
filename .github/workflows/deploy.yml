@@ -1,0 +1,141 @@
+name: Deploy
+
+# Manual dispatch only, never a required check. Assumes the scoped deploy role
+# via GitHub OIDC (created by terraform/bootstrap — see docs/runbook.md), so
+# no long-lived AWS keys exist anywhere. Apply: build and push SHA-tagged
+# images, terraform apply, run migrations as a one-off ECS task, wait for
+# stable services, print the URL. Dispatch with destroy=true to tear the
+# environment down instead.
+on:
+  workflow_dispatch:
+    inputs:
+      destroy:
+        description: Destroy the demo environment instead of deploying
+        required: false
+        default: false
+        type: boolean
+      operator_cidr:
+        description: CIDR allowed to reach RDS on 5432 for runbook recovery (e.g. 203.0.113.7/32)
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-demo
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-1' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the deploy prerequisites
+        if: ${{ vars.AWS_DEPLOY_ROLE_ARN == '' || vars.TF_STATE_BUCKET == '' || vars.BEDROCK_MODEL_ID == '' }}
+        run: |
+          echo "::error::Missing repository variables. Apply terraform/bootstrap first (docs/runbook.md, section 'Bootstrap and deploy role'), then set AWS_DEPLOY_ROLE_ARN, TF_STATE_BUCKET, and BEDROCK_MODEL_ID."
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to ECR
+        if: ${{ !inputs.destroy }}
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push images
+        if: ${{ !inputs.destroy }}
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          for image in api worker migrate; do
+            case "$image" in
+              api)     dockerfile=apps/api/Dockerfile ;;
+              worker)  dockerfile=apps/worker/Dockerfile ;;
+              migrate) dockerfile=db/Dockerfile ;;
+            esac
+            docker build -f "$dockerfile" -t "$REGISTRY/revisit/$image:$GITHUB_SHA" .
+            docker push "$REGISTRY/revisit/$image:$GITHUB_SHA"
+          done
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          # The wrapper garbles `terraform output -raw` capture.
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: terraform/stack
+        run: >-
+          terraform init -input=false
+          -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+          -backend-config="region=${{ env.AWS_REGION }}"
+
+      - name: Terraform apply
+        if: ${{ !inputs.destroy }}
+        working-directory: terraform/stack
+        run: >-
+          terraform apply -auto-approve -input=false
+          -var "image_tag=$GITHUB_SHA"
+          -var "bedrock_model_id=${{ vars.BEDROCK_MODEL_ID }}"
+          -var "operator_cidr=${{ inputs.operator_cidr }}"
+
+      - name: Run migrations as a one-off ECS task
+        if: ${{ !inputs.destroy }}
+        working-directory: terraform/stack
+        run: |
+          cluster=$(terraform output -raw cluster_name)
+          task_def=$(terraform output -raw migrate_task_definition_arn)
+          subnets=$(terraform output -json public_subnet_ids | jq -r 'join(",")')
+          sg=$(terraform output -raw migrate_security_group_id)
+
+          task_arn=$(aws ecs run-task \
+            --cluster "$cluster" \
+            --task-definition "$task_def" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$subnets],securityGroups=[$sg],assignPublicIp=ENABLED}" \
+            --query 'tasks[0].taskArn' --output text)
+          echo "migration task: $task_arn"
+
+          aws ecs wait tasks-stopped --cluster "$cluster" --tasks "$task_arn"
+          exit_code=$(aws ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          if [ "$exit_code" != "0" ]; then
+            echo "::error::Migration task exited with code $exit_code — see the /revisit-demo/migrate log group."
+            exit 1
+          fi
+
+      - name: Wait for stable services and print the URL
+        if: ${{ !inputs.destroy }}
+        working-directory: terraform/stack
+        run: |
+          cluster=$(terraform output -raw cluster_name)
+          aws ecs wait services-stable --cluster "$cluster" --services api worker
+          url=$(terraform output -raw api_url)
+          echo "API deployed at: $url"
+          {
+            echo "## Demo environment deployed"
+            echo ""
+            echo "- API: $url"
+            echo "- Swagger UI: $url/docs"
+            echo '- API key: `terraform output -raw api_key` (from terraform/stack with the same backend config)'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Terraform destroy
+        if: ${{ inputs.destroy }}
+        working-directory: terraform/stack
+        run: >-
+          terraform destroy -auto-approve -input=false
+          -var "image_tag=unused"
+          -var "bedrock_model_id=unused"
+          -var "operator_cidr="

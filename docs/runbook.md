@@ -76,9 +76,13 @@ simply converges on the already-stored result.
 
 ## GitHub → AWS OIDC prerequisite for the Bedrock eval workflow
 
-`.github/workflows/eval.yml` (manual dispatch only) runs the eval set against
-Bedrock. It authenticates by assuming an IAM role via GitHub's OIDC provider —
-no long-lived AWS keys are stored in the repository. One-time AWS setup:
+`.github/workflows/eval.yml` runs the eval set against Bedrock — on manual
+dispatch, on a weekly schedule, and on pushes to `main` that touch the eval
+set or the enrichers. Scheduled and push runs read the model id from the
+`BEDROCK_MODEL_ID` repository variable; dispatch inputs override it. It is
+never a required check. It authenticates by assuming an IAM role via GitHub's
+OIDC provider — no long-lived AWS keys are stored in the repository. One-time
+AWS setup:
 
 1. **Create the OIDC identity provider** (skip if the account already has it):
    IAM → Identity providers → Add provider → OpenID Connect, with provider URL
@@ -147,6 +151,67 @@ no long-lived AWS keys are stored in the repository. One-time AWS setup:
 4. **Set the repository variable**: repo Settings → Secrets and variables →
    Actions → Variables → `AWS_EVAL_ROLE_ARN` = the role's ARN. The workflow
    fails fast with a pointer to this section when the variable is unset.
+
+## Bootstrap and deploy role
+
+`terraform/bootstrap` holds the durable prerequisites of the cloud demo
+environment; `terraform/stack` holds the environment itself (ephemeral by
+design — `terraform destroy` → `apply` round-trips cleanly). Bootstrap is
+applied once by a human with their own credentials, because a deploy role
+cannot create the state bucket its own state would live in. It creates:
+
+- the S3 state bucket for the stack root (versioned, encrypted, private —
+  demo state contains the generated database password and API key);
+- the three ECR repositories (`revisit/api`, `revisit/worker`,
+  `revisit/migrate`), kept outside the stack root so destroying the
+  environment never deletes images;
+- the `revisit-demo-deploy` IAM role that `.github/workflows/deploy.yml`
+  assumes via the same OIDC provider and id-embedded `sub` claim documented
+  above.
+
+```bash
+cd terraform/bootstrap
+terraform init
+terraform apply -var 'state_bucket_name=<globally-unique-name>'
+```
+
+Bootstrap uses local state, and that state is deliberately not committed;
+the resources are few, cheap, and re-importable. After applying, set the
+repository variables the deploy workflow requires: `AWS_DEPLOY_ROLE_ARN` and
+`TF_STATE_BUCKET` (both terraform outputs), plus `BEDROCK_MODEL_ID`.
+
+The deploy role's policy is service-scoped, not action-scoped: full access to
+the services the stack root manages, with resource scoping where it is cheap
+(IAM restricted to the `/revisit-demo/` role path, S3 to the state bucket).
+A true least-action policy for a Terraform apply role is unmaintainable; the
+honest trade-off is documented scoping plus no long-lived credentials.
+
+**Bedrock Marketplace first-invoke:** the worker task role
+(`bedrock:InvokeModel` only) is subject to the same first-invoke Marketplace
+subscription gotcha described in step 3 above. If the account has already run
+the eval workflow once, the subscription is account-wide and sticky and the
+worker needs nothing; otherwise apply the same temporary-policy workaround to
+the worker task role, or run the eval once first.
+
+## Recovery against the cloud database
+
+The requeue procedure above is identical in the cloud — only the connection
+differs. RDS accepts 5432 solely from the task security groups and the
+`operator_cidr` supplied at deploy time (a `deploy.yml` dispatch input), so
+recovery requires having deployed with your address in that variable.
+
+The connection string is the `libpq` key of the `revisit-demo/database-url`
+secret:
+
+```bash
+aws secretsmanager get-secret-value --secret-id revisit-demo/database-url \
+  --query SecretString --output text | jq -re .libpq
+```
+
+Use it as `psql "$DATABASE_URL"` and run the same inspection and requeue SQL.
+The `error_code` values documented above are also CloudWatch metrics in the
+cloud (`Revisit/JobFailedByCode` on the `revisit-demo` dashboard), so failure
+counts need no log grepping there.
 
 The merge-gating CI workflow (`ci.yml`) never uses any of this: it stays fully
 offline and credential-free.

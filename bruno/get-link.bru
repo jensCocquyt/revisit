@@ -10,6 +10,10 @@ get {
   auth: none
 }
 
+headers {
+  x-api-key: {{apiKey}}
+}
+
 docs {
   Returns the current stored representation of a link. Run "Save link" first:
   it captures the created id into {{linkId}}. Unknown ids return 404,

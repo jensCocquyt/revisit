@@ -214,7 +214,7 @@ resource "aws_ecs_service" "api" {
   health_check_grace_period_seconds = 60
 
   network_configuration {
-    subnets          = aws_subnet.public[*].id
+    subnets          = module.vpc.public_subnets
     security_groups  = [aws_security_group.api.id]
     assign_public_ip = true
   }
@@ -236,7 +236,7 @@ resource "aws_ecs_service" "worker" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = aws_subnet.public[*].id
+    subnets          = module.vpc.public_subnets
     security_groups  = [aws_security_group.worker.id]
     assign_public_ip = true
   }

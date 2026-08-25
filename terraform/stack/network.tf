@@ -1,46 +1,24 @@
-# Public-subnets-only, no NAT gateway: tasks get public IPs and egress via the
-# internet gateway; security groups do all isolation. Two AZs because the ALB
-# and the RDS subnet group both require two.
+# Networking via the community VPC module — the standard real-world choice
+# for this undifferentiated layer (VPC, subnets, internet gateway, routing).
+# Everything application-specific (security groups, services, database) stays
+# hand-written where the architecture is actually stated.
 
-resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_support   = true
-  enable_dns_hostnames = true
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 6.0"
 
-  tags = { Name = local.name }
-}
+  name = local.name
+  cidr = "10.0.0.0/16"
 
-resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id
+  # Two AZs because the ALB and the RDS subnet group both require two.
+  azs            = slice(data.aws_availability_zones.available.names, 0, 2)
+  public_subnets = ["10.0.0.0/24", "10.0.1.0/24"]
 
-  tags = { Name = local.name }
-}
-
-resource "aws_subnet" "public" {
-  count = 2
-
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)
-  availability_zone       = data.aws_availability_zones.available.names[count.index]
   map_public_ip_on_launch = true
+  enable_dns_support      = true
+  enable_dns_hostnames    = true
 
-  tags = { Name = "${local.name}-public-${count.index}" }
-}
-
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main.id
-  }
-
-  tags = { Name = "${local.name}-public" }
-}
-
-resource "aws_route_table_association" "public" {
-  count = 2
-
-  subnet_id      = aws_subnet.public[count.index].id
-  route_table_id = aws_route_table.public.id
+  # The cost decision, stated as configuration: no NAT, no private subnets —
+  # tasks get public IPs and security groups do all isolation.
+  enable_nat_gateway = false
 }

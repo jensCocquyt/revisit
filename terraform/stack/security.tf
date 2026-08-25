@@ -5,7 +5,7 @@
 resource "aws_security_group" "alb" {
   name        = "${local.name}-alb"
   description = "Public HTTP entry point"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = module.vpc.vpc_id
 
   ingress {
     description = "HTTP from anywhere (demo URL)"
@@ -27,7 +27,7 @@ resource "aws_security_group" "alb" {
 resource "aws_security_group" "api" {
   name        = "${local.name}-api"
   description = "API tasks: ALB-only inbound"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = module.vpc.vpc_id
 
   egress {
     description = "Database, ECR, logs, secrets"
@@ -51,7 +51,7 @@ resource "aws_security_group_rule" "api_from_alb" {
 resource "aws_security_group" "worker" {
   name        = "${local.name}-worker"
   description = "Worker tasks: no inbound"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = module.vpc.vpc_id
 
   egress {
     description = "Page fetches, Bedrock, database, ECR, logs, secrets"
@@ -65,7 +65,7 @@ resource "aws_security_group" "worker" {
 resource "aws_security_group" "migrate" {
   name        = "${local.name}-migrate"
   description = "One-off migration tasks: no inbound"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = module.vpc.vpc_id
 
   egress {
     description = "Database, ECR, logs, secrets"
@@ -79,7 +79,7 @@ resource "aws_security_group" "migrate" {
 resource "aws_security_group" "rds" {
   name        = "${local.name}-rds"
   description = "PostgreSQL: task SGs plus optional operator CIDR"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = module.vpc.vpc_id
 
   ingress {
     description = "API tasks"

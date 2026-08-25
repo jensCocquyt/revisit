@@ -11,7 +11,7 @@ resource "random_password" "db" {
 
 resource "aws_db_subnet_group" "main" {
   name       = local.name
-  subnet_ids = aws_subnet.public[*].id
+  subnet_ids = module.vpc.public_subnets
 }
 
 resource "aws_db_instance" "main" {

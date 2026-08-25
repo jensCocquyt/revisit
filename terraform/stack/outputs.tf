@@ -24,7 +24,7 @@ output "migrate_task_definition_arn" {
 }
 
 output "public_subnet_ids" {
-  value = aws_subnet.public[*].id
+  value = module.vpc.public_subnets
 }
 
 output "migrate_security_group_id" {

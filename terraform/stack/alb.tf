@@ -5,14 +5,14 @@ resource "aws_lb" "api" {
   name               = local.name
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets            = aws_subnet.public[*].id
+  subnets            = module.vpc.public_subnets
 }
 
 resource "aws_lb_target_group" "api" {
   name        = local.name
   port        = 3000
   protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = module.vpc.vpc_id
   target_type = "ip"
 
   # Short drain: demo tasks hold no long-lived requests.

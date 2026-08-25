@@ -18,7 +18,7 @@ The stack runs locally under Docker Compose and in CI, entirely offline. AWS exi
 
 - Production posture: no multi-AZ, no autoscaling, no custom domain/TLS, no blue-green, no tracing.
 - Real authentication or rate limiting (build-spec deferral stands; only the minimal spend-protection below).
-- Terraform module abstractions or multi-environment layering — one demo environment, flat files.
+- Multi-environment layering or homegrown module abstractions — one demo environment, flat files. The single exception: networking uses the community `terraform-aws-modules/vpc` module (the near-universal real-world choice for that undifferentiated layer); everything architecture-bearing (security groups, ECS, RDS, ALB) stays as explicit resources.
 
 ## Decisions
 

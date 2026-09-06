@@ -41,7 +41,7 @@ If there is no PR for the current branch, say so and STOP.
      }' -F owner=<owner> -F repo=<repo> -F pr=<number>
    ```
 
-   Keep only threads with `isResolved: false`. Also fetch PR-level conversation comments (`gh pr view <number> --json comments,reviews`) and treat unanswered questions there as threads to answer (reply with `gh pr comment`).
+   Keep only threads with `isResolved: false`. Also fetch PR-level conversation comments (`gh pr view <number> --json comments,reviews`) and treat unanswered questions there as threads to answer (reply with `gh pr comment`). Skip the reviewer's status comment (the claude[bot] comment starting with `<!-- claude-review-status -->`): it only records the last reviewed head and is not a thread to answer.
 
    If there are no unresolved threads, report that and STOP.
 
@@ -56,6 +56,8 @@ If there is no PR for the current branch, say so and STOP.
    - **won't fix** — the comment is wrong or out of scope for this change; needs a reasoned reply, no code change. Check scope against `openspec/changes/<id>/proposal.md` (out-of-scope section) before deciding.
    - **question back** — genuinely ambiguous; needs a clarifying question, no code change yet.
 
+   Threads opened by the review workflow start with a severity label (**blocking**, **should**, **nit**). Use it as the starting point, not the verdict: a `nit` can still be a fix, and a `blocking` can be a won't fix with a reasoned reply.
+
    Present the triage as a short table (path:line, one-line summary, verdict) before implementing.
 
 4. **Implement the fixes**
@@ -67,7 +69,7 @@ If there is no PR for the current branch, say so and STOP.
 
 5. **Commit and push once**
 
-   One commit (or a few logical ones) covering all fixes, then a single push — each push triggers one re-review run of the Claude review workflow, so do not push per-fix.
+   One commit (or a few logical ones) covering all fixes, then a single push — each push triggers one re-review run of the Claude review workflow, so do not push per-fix. The re-review covers only the commits since the head recorded in the status comment, so it will not re-read the whole PR.
 
 6. **Reply in every thread** — after the push, so replies can reference the commit SHA.
 

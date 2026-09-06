@@ -82,7 +82,7 @@ resource "aws_security_group" "rds" {
   vpc_id      = module.vpc.vpc_id
 
   ingress {
-    description = "API tasks"
+    description = "Task security groups (api, worker, migrate)"
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"

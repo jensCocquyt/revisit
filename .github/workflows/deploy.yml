@@ -58,16 +58,7 @@ jobs:
         if: ${{ !inputs.destroy }}
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
-        run: |
-          for image in api worker migrate; do
-            case "$image" in
-              api)     dockerfile=apps/api/Dockerfile ;;
-              worker)  dockerfile=apps/worker/Dockerfile ;;
-              migrate) dockerfile=db/Dockerfile ;;
-            esac
-            docker build -f "$dockerfile" -t "$REGISTRY/revisit/$image:$GITHUB_SHA" .
-            docker push "$REGISTRY/revisit/$image:$GITHUB_SHA"
-          done
+        run: ./scripts/deploy-build-push.sh
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -84,52 +75,25 @@ jobs:
       - name: Terraform apply
         if: ${{ !inputs.destroy }}
         working-directory: terraform/stack
+        env:
+          # Free-form dispatch input: passed as an environment variable, never
+          # interpolated into the script text (script-injection hardening).
+          OPERATOR_CIDR: ${{ inputs.operator_cidr }}
         run: >-
           terraform apply -auto-approve -input=false
           -var "image_tag=$GITHUB_SHA"
           -var "bedrock_model_id=${{ vars.BEDROCK_MODEL_ID }}"
-          -var "operator_cidr=${{ inputs.operator_cidr }}"
+          -var "operator_cidr=$OPERATOR_CIDR"
 
       - name: Run migrations as a one-off ECS task
         if: ${{ !inputs.destroy }}
         working-directory: terraform/stack
-        run: |
-          cluster=$(terraform output -raw cluster_name)
-          task_def=$(terraform output -raw migrate_task_definition_arn)
-          subnets=$(terraform output -json public_subnet_ids | jq -r 'join(",")')
-          sg=$(terraform output -raw migrate_security_group_id)
-
-          task_arn=$(aws ecs run-task \
-            --cluster "$cluster" \
-            --task-definition "$task_def" \
-            --launch-type FARGATE \
-            --network-configuration "awsvpcConfiguration={subnets=[$subnets],securityGroups=[$sg],assignPublicIp=ENABLED}" \
-            --query 'tasks[0].taskArn' --output text)
-          echo "migration task: $task_arn"
-
-          aws ecs wait tasks-stopped --cluster "$cluster" --tasks "$task_arn"
-          exit_code=$(aws ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" \
-            --query 'tasks[0].containers[0].exitCode' --output text)
-          if [ "$exit_code" != "0" ]; then
-            echo "::error::Migration task exited with code $exit_code — see the /revisit-demo/migrate log group."
-            exit 1
-          fi
+        run: ../../scripts/deploy-migrate.sh
 
       - name: Wait for stable services and print the URL
         if: ${{ !inputs.destroy }}
         working-directory: terraform/stack
-        run: |
-          cluster=$(terraform output -raw cluster_name)
-          aws ecs wait services-stable --cluster "$cluster" --services api worker
-          url=$(terraform output -raw api_url)
-          echo "API deployed at: $url"
-          {
-            echo "## Demo environment deployed"
-            echo ""
-            echo "- API: $url"
-            echo "- Swagger UI: $url/docs"
-            echo '- API key: `terraform output -raw api_key` (from terraform/stack with the same backend config)'
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: ../../scripts/deploy-wait.sh
 
       - name: Terraform destroy
         if: ${{ inputs.destroy }}

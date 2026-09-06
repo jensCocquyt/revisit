@@ -104,6 +104,10 @@ Authoring rules the config enforces: keep each change small enough for one revie
 
 The build spec's scope rule applies to code review too: build only what MVP 1 uses. Brokers, object storage, embeddings, and auth are deliberately deferred.
 
+### Review loop
+
+`.github/workflows/claude-review.yml` reviews every non-draft PR push: findings land as inline comments labelled `blocking` / `should` / `nit`, and one status comment (body starts with `<!-- claude-review-status -->`) records the last reviewed head so re-reviews cover only new commits. `/address-review` (`.claude/commands/address-review.md`) works through the resulting threads locally. The reviewer enforces `tasks/lessons.md`, so record owner corrections there rather than in the prompt.
+
 ## Conventions
 
 - Biome for the API: 2-space indent, 100-col lines, organize-imports on. `noUnusedVariables` is explicitly enabled — Biome's recommended set alone did not catch it, and CI proved that.

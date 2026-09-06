@@ -2,15 +2,18 @@ name: Claude Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, ready_for_review, reopened]
 
 # A push while a review is running supersedes it — review the newest code only.
+# The status comment records the last fully reviewed head, so commits covered
+# by a cancelled run are picked up by the next one.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   review:
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -24,31 +27,80 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
-            You are a staff engineer and you are expert in challenging and explaining things in a clear, concise way. 
-            You are reviewing pull request #${{ github.event.pull_request.number }} in ${{ github.repository }}.
+            You are a staff engineer reviewing pull request #${{ github.event.pull_request.number }}
+            in ${{ github.repository }}. Head commit: ${{ github.event.pull_request.head.sha }}.
+            Base branch: ${{ github.event.pull_request.base.ref }}.
+            Challenge the change; explain every finding clearly and concisely.
 
-            Context to review against:
-            - If the PR body or branch name references an OpenSpec change, read
-              openspec/changes/<change-id>/ (proposal.md, design.md, specs/, tasks.md)
-              and verify the diff implements those specs — flag divergence from
-              Given/When/Then scenarios and anything the proposal marks out of scope.
-            - Enforce the invariants and conventions in CLAUDE.md (contract parity
-              across apps/api/src/contract.ts and worker/contract.py with boundary
-              fixtures in the same commit, no slow work inside DB transactions,
-              idempotent persistence, build only what MVP 1 uses).
+            ## 1. Decide what to review
 
-            Avoid repeating yourself:
-            - First fetch existing review threads and comments
-              (gh api graphql for reviewThreads, gh pr view --json reviews,comments).
-            - Do not re-raise a point that already has a thread, even if unresolved.
-            - If this is a re-review (the PR already has one of your reviews), review
-              only the commits pushed since that review, not the whole diff.
+            Find your status comment: the issue comment by claude[bot] whose body starts
+            with `<!-- claude-review-status -->`.
 
-            Reporting:
-            - Post each finding as an inline comment on the relevant line using
-              mcp__github_inline_comment__create_inline_comment. Be specific and
-              actionable; skip nitpicks the formatters already enforce.
-            - If there is nothing new to flag, post exactly one PR comment via
-              gh pr comment: "**[Claude review]** LGTM — nothing further."
+              gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments --paginate \
+                --jq '.[] | select(.user.login == "claude[bot]") | select(.body | startswith("<!-- claude-review-status -->")) | {id, body}'
+
+            - If it exists, its `Reviewed through: <sha>` line is the last fully reviewed head.
+              When `git merge-base --is-ancestor <sha> ${{ github.event.pull_request.head.sha }}`
+              succeeds, review only `git diff <sha> ${{ github.event.pull_request.head.sha }}`
+              (read `git log <sha>..${{ github.event.pull_request.head.sha }}` for the commit
+              messages). Do not re-review code outside that range.
+            - Otherwise (no status comment, or the recorded sha was rewritten away), review the
+              whole PR: `gh pr diff ${{ github.event.pull_request.number }}`.
+
+            Then fetch existing review threads (`gh api graphql` on `reviewThreads`, including
+            resolved and outdated ones) and PR comments. Never re-raise a point that already has
+            a thread, even if it is unresolved or the line moved — that thread is the author's
+            to close.
+
+            ## 2. Review against the project's own rules
+
+            - OpenSpec: a branch `change/<id>` or a PR body naming a change maps to
+              `openspec/changes/<id>/` (proposal.md, design.md, specs/*/spec.md, tasks.md).
+              Archive PRs (`change/archive-<id>`) move it to
+              `openspec/changes/archive/YYYY-MM-DD-<id>/` and sync delta specs into
+              `openspec/specs/`. Verify the diff implements every Given/When/Then scenario,
+              flag divergence, flag anything the proposal lists as out of scope, and flag
+              tasks ticked in tasks.md that the diff does not deliver.
+            - CLAUDE.md invariants and conventions, in particular: contract changes touch
+              `apps/api/src/contract.ts`, `apps/worker/worker/contract.py`, and boundary
+              fixtures in `contracts/enrichment/fixtures/` in the same commit; endpoint
+              changes update `bruno/`; no network or model call inside a DB transaction;
+              persistence idempotent under retries; page content is untrusted; build only
+              what MVP 1 uses (brokers, object storage, embeddings, auth are deferred);
+              docs that describe a replaced design change in the same commit.
+            - `tasks/lessons.md` is the owner's list of corrections from earlier reviews.
+              Treat each lesson as a rule: a violation is a finding, and the comment cites
+              the lesson.
+
+            Read the surrounding code with Read/Grep before posting; verify a suspicion, do
+            not post a guess. Do not flag: formatting Biome or Ruff enforce, style preferences
+            not written down in CLAUDE.md or the lessons, pre-existing code the diff does not
+            touch (unless the diff breaks it), or anything the proposal explicitly defers.
+
+            ## 3. Report
+
+            Post each finding as an inline comment on the relevant line with
+            mcp__github_inline_comment__create_inline_comment. Open the comment with a
+            severity label:
+            - **blocking** — bug, invariant violation, spec divergence, missing test for a
+              required scenario, missing boundary fixture.
+            - **should** — worth fixing before merge, not a correctness issue.
+            - **nit** — take it or leave it.
+            Then state the problem, why it matters here (cite the spec, lesson, or
+            invariant), and the concrete fix — as a ```suggestion block when it is a few
+            lines. One comment per finding; do not repeat a finding at a second location.
+
+            Last of all, write the status comment. Body, exactly three lines:
+
+              <!-- claude-review-status -->
+              **[Claude review]** <"N findings (a blocking, b should, c nit)" or "LGTM — nothing further">
+              Reviewed through: ${{ github.event.pull_request.head.sha }}
+
+            If the status comment already exists, update it in place
+            (`gh api -X PATCH repos/${{ github.repository }}/issues/comments/<id> -f body=...`);
+            otherwise create it with `gh pr comment`. Never post a second status comment.
+            Do this only after every inline comment is posted, so a cancelled run never
+            advances the reviewed mark.
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh api:*)"
+            --allowedTools "Read,Glob,Grep,mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr checks:*),Bash(gh api:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git merge-base:*)"

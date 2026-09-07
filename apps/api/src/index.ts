@@ -10,7 +10,7 @@ if (!databaseUrl) {
 
 const port = Number(process.env.API_PORT ?? 3000);
 const db = createDb(databaseUrl);
-const app = createApp(db);
+const app = createApp(db, { apiKey: process.env.API_KEY });
 
 serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, (info) => {
   console.log(JSON.stringify({ msg: "api listening", port: info.port }));

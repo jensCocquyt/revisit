@@ -148,6 +148,19 @@ AWS setup:
    it is pending), then run again and remove the policy. The subscription is
    account-wide and sticky.
 
+   Two field notes from hitting this in practice: AWS caches the denial
+   verdict for about five minutes (the error message says so in its last
+   sentence), so a retry right after fixing permissions still fails — wait
+   the window out before concluding the fix did not work. And since the
+   subscription is account-wide, any principal with the two Marketplace
+   permissions can prime it: a single direct
+   `aws bedrock-runtime converse` call with the model id, from an operator
+   with admin rights, activates the subscription without touching any
+   runtime role. The subscription is per model — a new model id restarts
+   the ceremony; the very first call to a new model may also slip through
+   while the subscription is created, with the following calls denied until
+   it activates.
+
 4. **Set the repository variable**: repo Settings → Secrets and variables →
    Actions → Variables → `AWS_EVAL_ROLE_ARN` = the role's ARN. The workflow
    fails fast with a pointer to this section when the variable is unset.

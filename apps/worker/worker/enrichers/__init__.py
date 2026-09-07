@@ -1,4 +1,5 @@
-"""Enrichers: the AI seam (`base`) and its implementations (`stub`, `bedrock`)."""
+"""Enrichers: the AI seam (`base`), the shared prompt for model-backed
+implementations (`model`), and the implementations (`stub`, `bedrock`, `ollama`)."""
 
 from worker.enrichers.base import (
     Enricher,

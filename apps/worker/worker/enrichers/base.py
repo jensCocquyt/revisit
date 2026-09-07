@@ -59,7 +59,7 @@ class Enricher(ABC):
 
 def get_enricher(name: str) -> Enricher:
     # Imported here to keep the seam module free of implementation imports and
-    # boto3 out of the process unless Bedrock is actually selected.
+    # provider SDKs out of the process unless that provider is selected.
     if name == "stub":
         from worker.enrichers.stub import StubEnricher
 
@@ -68,4 +68,8 @@ def get_enricher(name: str) -> Enricher:
         from worker.enrichers.bedrock import BedrockEnricher
 
         return BedrockEnricher()
-    raise ValueError(f"Unknown enricher: {name!r} (expected 'stub' or 'bedrock')")
+    if name == "ollama":
+        from worker.enrichers.ollama import OllamaEnricher
+
+        return OllamaEnricher()
+    raise ValueError(f"Unknown enricher: {name!r} (expected 'stub', 'bedrock' or 'ollama')")

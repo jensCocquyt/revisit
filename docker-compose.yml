@@ -71,6 +71,11 @@ services:
       FETCH_ALLOWED_CONTENT_TYPES: ${FETCH_ALLOWED_CONTENT_TYPES:-text/html,application/xhtml+xml,text/plain}
       FETCH_ALLOWED_HOSTS: ${FETCH_ALLOWED_HOSTS:-}
       BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+    # Lets the container reach Ollama on the host from Linux engines too.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy

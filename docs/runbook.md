@@ -74,6 +74,25 @@ A running worker picks the job up on its next poll (`available_at` is now).
 Persistence is idempotent, so requeueing a job whose content has not changed
 simply converges on the already-stored result.
 
+## Running against local Ollama
+
+`ENRICHER=ollama` sends the shared prompt to an Ollama server on the developer's
+machine instead of Bedrock. It is a local testing path, not an evaluated one:
+small models quote less precisely, and evidence that does not resolve against
+the stored text is dropped as usual.
+
+- Set `OLLAMA_MODEL` to a model that supports at least 8192 context tokens
+  (`llama3.2` does). The worker refuses to start without it.
+- In Docker Compose the worker reaches Ollama through `host.docker.internal`.
+  Docker Desktop resolves that name by itself; on a Linux engine the compose
+  file's `extra_hosts` entry provides it, and Ollama must listen on all
+  interfaces (`OLLAMA_HOST=0.0.0.0`) rather than loopback only.
+- CPU inference takes minutes for a full page. Raise `WORKER_LEASE_SECONDS`
+  above the expected latency so a second worker cannot reclaim the job
+  mid-call; with a single worker an expired lease is harmless.
+- Results persist under `prompt_version` `ollama-v3`, separate from Bedrock's
+  `bedrock-v3` rows for the same link and content.
+
 ## GitHub → AWS OIDC prerequisite for the Bedrock eval workflow
 
 `.github/workflows/eval.yml` runs the eval set against Bedrock — on manual

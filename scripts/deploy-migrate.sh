@@ -20,6 +20,11 @@ aws ecs wait tasks-stopped --cluster "$cluster" --tasks "$task_arn"
 exit_code=$(aws ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" \
   --query 'tasks[0].containers[0].exitCode' --output text)
 if [ "$exit_code" != "0" ]; then
-  echo "migration task exited with code $exit_code - see the /revisit-demo/migrate log group" >&2
+  message="migration task exited with code $exit_code - see the /revisit-demo/migrate log group"
+  if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    echo "::error::$message"
+  else
+    echo "$message" >&2
+  fi
   exit 1
 fi

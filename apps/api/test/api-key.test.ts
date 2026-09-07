@@ -1,22 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
-import type { LinkRow } from "../src/db/index.js";
 import { fakeDb } from "./fakes.js";
+import { storedEnrichment, storedLink } from "./results.js";
 
 const KEY = "demo-secret";
 
-const storedLink: LinkRow = {
-  id: "0d9f6a1c-3b6e-4c2d-9f6a-1c3b6e4c2d9f",
-  url: "https://example.com/article",
-  note: null,
-  goal: null,
-  status: "pending",
-  created_at: "2026-08-17T00:00:00.000Z",
-};
+const link = storedLink({ status: "pending" });
 
 const db = fakeDb({
-  getLink: async () => storedLink,
-  createLinkWithJob: async () => storedLink,
+  getLink: async () => link,
+  createLinkWithJob: async () => link,
+  listLinks: async () => ({ items: [link], hasMore: false }),
+  getEnrichment: async () => storedEnrichment(),
 });
 
 const saveRequest = (headers: Record<string, string>) =>
@@ -25,6 +20,8 @@ const saveRequest = (headers: Record<string, string>) =>
     headers: { "Content-Type": "application/json", "Idempotency-Key": "k-1", ...headers },
     body: JSON.stringify({ url: "https://example.com/article" }),
   });
+
+const readRoutes = ["/links", `/links/${link.id}`, `/links/${link.id}/enrichment`];
 
 describe("API key protection when API_KEY is set", () => {
   const app = createApp(db, { apiKey: KEY });
@@ -35,7 +32,7 @@ describe("API key protection when API_KEY is set", () => {
       fakeDb({
         createLinkWithJob: async () => {
           created = true;
-          return storedLink;
+          return link;
         },
       }),
       { apiKey: KEY },
@@ -46,12 +43,21 @@ describe("API key protection when API_KEY is set", () => {
     expect(created).toBe(false);
   });
 
-  it("rejects a wrong key", async () => {
-    const res = await app.request(`/links/${storedLink.id}`, {
-      headers: { "x-api-key": "wrong" },
-    });
+  it.each(readRoutes)("rejects %s without a key", async (path) => {
+    const res = await app.request(path);
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ error: "unauthorized" });
+  });
+
+  it.each(readRoutes)("rejects %s with a wrong key", async (path) => {
+    const res = await app.request(path, { headers: { "x-api-key": "wrong" } });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "unauthorized" });
+  });
+
+  it.each(readRoutes)("serves %s with the key", async (path) => {
+    const res = await app.request(path, { headers: { "x-api-key": KEY } });
+    expect(res.status).toBe(200);
   });
 
   it("passes valid-key requests through unchanged, idempotency intact", async () => {
@@ -63,9 +69,9 @@ describe("API key protection when API_KEY is set", () => {
         key: "k-1",
         // Hash of the same normalized request, so the replay path serves 200.
         requestHash: await requestHashOf(),
-        linkId: storedLink.id,
+        linkId: link.id,
       }),
-      getLink: async () => storedLink,
+      getLink: async () => link,
     });
     const replayApp = createApp(replayDb, { apiKey: KEY });
     const replay = await replayApp.request(saveRequest({ "x-api-key": KEY }));
@@ -85,6 +91,9 @@ describe("without API_KEY configured", () => {
     const app = createApp(db);
     const res = await app.request(saveRequest({}));
     expect(res.status).toBe(201);
+    for (const path of readRoutes) {
+      expect((await app.request(path)).status, path).toBe(200);
+    }
   });
 });
 

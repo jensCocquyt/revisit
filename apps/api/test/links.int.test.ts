@@ -165,6 +165,8 @@ describe("GET /links/:id", () => {
       goal: "g",
       status: "pending",
       created_at: created.created_at,
+      tags: [],
+      deadline: null,
     });
   });
 

@@ -6,6 +6,28 @@ export interface LinkRow {
   status: "pending" | "enriched" | "failed";
   created_at: string;
   updated_at: string;
+  latest_result: unknown;
+}
+
+export interface ListLinksInput {
+  status?: LinkRow["status"];
+  tag?: string;
+  limit: number;
+  afterId?: string;
+}
+
+export interface LinkPage {
+  items: LinkRow[];
+  hasMore: boolean;
+}
+
+export interface EnrichmentRow {
+  link_id: string;
+  created_at: string;
+  model_id: string | null;
+  prompt_version: string;
+  result: unknown;
+  extracted_text: string | null;
 }
 
 export interface IdempotencyKeyRow {
@@ -35,6 +57,8 @@ export class IdempotencyKeyConflictError extends Error {
 export interface Db {
   ping(): Promise<void>;
   getLink(id: string): Promise<LinkRow | null>;
+  listLinks(input: ListLinksInput): Promise<LinkPage>;
+  getEnrichment(linkId: string): Promise<EnrichmentRow | null>;
   findIdempotencyKey(key: string): Promise<IdempotencyKeyRow | null>;
   createLinkWithJob(input: CreateLinkWithJobInput): Promise<LinkRow>;
 }

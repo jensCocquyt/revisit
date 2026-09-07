@@ -9,12 +9,14 @@ export const CONTRACT_VERSION = "v2";
 
 const TAG_MAX_LENGTH = 50;
 const TAGS_MAX_COUNT = 5;
+const OFFSET_DESCRIPTION =
+  "Code-point offset into the stored extracted text, as the worker computed it; locate quotes by text, not by offset, in UTF-16 consumers.";
 
 const evidenceItemSchema = z
   .strictObject({
     quote: z.string().min(1).max(500),
-    start_offset: z.number().int().min(0),
-    end_offset: z.number().int().min(0),
+    start_offset: z.number().int().min(0).describe(OFFSET_DESCRIPTION),
+    end_offset: z.number().int().min(0).describe(OFFSET_DESCRIPTION),
   })
   .refine((item) => item.end_offset >= item.start_offset, {
     message: "end_offset must be >= start_offset",

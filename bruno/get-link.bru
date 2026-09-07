@@ -1,7 +1,7 @@
 meta {
   name: Get link
   type: http
-  seq: 3
+  seq: 4
 }
 
 get {
@@ -15,7 +15,8 @@ headers {
 }
 
 docs {
-  Returns the current stored representation of a link. Run "Save link" first:
-  it captures the created id into {{linkId}}. Unknown ids return 404,
-  malformed ids return 400.
+  Returns the current stored representation of a link, including the `tags`
+  and `deadline` facets of its latest enrichment. Run "Save link" first: it
+  captures the created id into {{linkId}}. Unknown ids return 404, malformed
+  ids return 400.
 }

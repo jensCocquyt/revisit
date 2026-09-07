@@ -105,6 +105,7 @@ resource "aws_ecs_task_definition" "api" {
 
       environment = [
         { name = "API_PORT", value = "3000" },
+        { name = "CORS_ORIGINS", value = var.cors_origins },
       ]
 
       secrets = [

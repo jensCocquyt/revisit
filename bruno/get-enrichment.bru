@@ -1,0 +1,27 @@
+meta {
+  name: Get enrichment
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/links/{{linkId}}/enrichment
+  body: none
+  auth: none
+}
+
+headers {
+  x-api-key: {{apiKey}}
+}
+
+docs {
+  Returns the latest stored enrichment for {{linkId}} (captured by "Save
+  link"): summary, key takeaway, tags, deadline, and evidence. The result is
+  validated against the contract before serving, and evidence is included
+  only when its quote is verbatim in the stored extracted text.
+
+  Returns 404 `enrichment_not_found` while the link is still `pending` or
+  after it `failed`. Against the cloud environment, run "Save link", wait
+  until "Get link" reports `enriched` (Bedrock takes a few seconds), then
+  run this request.
+}

@@ -21,3 +21,9 @@ variable "operator_cidr" {
   type        = string
   default     = ""
 }
+
+variable "cors_origins" {
+  description = "Comma-separated exact browser origins allowed to call the API. Empty emits no CORS headers."
+  type        = string
+  default     = ""
+}

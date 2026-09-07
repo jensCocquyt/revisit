@@ -32,6 +32,9 @@ This starts PostgreSQL, applies migrations, and runs the API and worker. No exte
 
 - API health: `curl http://localhost:3000/health`
 - Service status: `docker compose ps` (all services report healthy)
+- Swagger UI: `http://localhost:3000/docs`
+
+Endpoints: `POST /links` saves a link, `GET /links` lists them newest first (filter with `status` and `tag`, page with `limit` and `cursor`), `GET /links/:id` returns one link with its `tags` and `deadline` facets, and `GET /links/:id/enrichment` returns the latest contract-validated enrichment with evidence that resolves to the stored page text. Set `API_KEY` to require `x-api-key` on link routes, and `CORS_ORIGINS` to let a browser client on those exact origins call the API.
 
 ## Development commands
 

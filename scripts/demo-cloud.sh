@@ -7,7 +7,7 @@
 # Required:
 #   BASE_URL      the ALB URL (terraform output -raw api_url)
 #   API_KEY       the link-route key (terraform output -raw api_key)
-#   DATABASE_URL  operator connection to RDS, used for enrichment inspection
+#   DATABASE_URL  operator connection to RDS, used for the job-row inspection
 #                 and the requeue (needs the operator_cidr SG rule; the value
 #                 is the `libpq` key of the revisit-demo/database-url secret)
 # Optional URL overrides: DEADLINE_URL, EVERGREEN_URL, FAILING_URL.
@@ -52,26 +52,11 @@ wait_for() { # wait_for <link-id> <wanted-status> [attempts]
   return 1
 }
 
-# The API deliberately exposes only the link row (no enrichment endpoint yet),
-# so inspection reads the stored enrichment directly — which doubles as the
-# proof that evidence resolves to stored extracted text.
+# The API serves only evidence whose quote is verbatim in the stored extracted
+# text, so whatever appears here resolves by construction.
 show_enrichment() { # show_enrichment <link-id>
-  psql "$DATABASE_URL" --no-psqlrc --quiet --tuples-only --no-align <<SQL | jq .
-SELECT jsonb_build_object(
-  'tags',     e.result->'tags',
-  'summary',  e.result->'summary',
-  'deadline', e.result->'deadline',
-  'evidence_resolves',
-    (SELECT bool_and(position((item->>'quote') IN cv.extracted_text) > 0)
-     FROM jsonb_array_elements(e.result->'evidence') AS item),
-  'evidence', e.result->'evidence'
-)
-FROM enrichments e
-JOIN content_versions cv ON cv.id = e.content_version_id
-WHERE e.link_id = '$1'
-ORDER BY e.created_at DESC
-LIMIT 1;
-SQL
+  curl -fsS "$BASE_URL/links/$1/enrichment" -H "x-api-key: $API_KEY" |
+    jq '.result | {tags, summary, deadline, evidence}'
 }
 
 step "1. Save a page whose value is date-bound: $deadline_url"

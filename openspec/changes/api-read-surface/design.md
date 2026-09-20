@@ -75,12 +75,15 @@ Served by `enrichments_link_id_idx`. Enrichment history is not exposed, so nothi
 `GET /links?status=&tag=&limit=&cursor=`. Ordering is `created_at DESC, id DESC`; the cursor is the id of the last item served, documented as opaque. The next page is `WHERE (l.created_at, l.id) < (SELECT created_at, id FROM links WHERE id = $cursor)`. Response: `{ "items": Link[], "next_cursor": string | null }`. `limit` defaults to 20, maximum 100. A cursor that is not a UUID is `400 invalid_request`.
 
 - *Why keyset over offset*: a library receives inserts while a UI pages; offset pagination skips or repeats rows. Keyset is one extra clause.
-- *Why the row id rather than an encoded timestamp*: `created_at` has microsecond precision and JavaScript dates have milliseconds; a cursor carrying a truncated timestamp would skip rows created in the same millisecond. Comparing against the cursor row's own stored position has full precision by construction and needs no encoding. There is no delete endpoint, so the cursor row cannot vanish.
+- *Why the row id rather than an encoded timestamp*: `created_at` has microsecond precision and JavaScript dates have milliseconds; a cursor carrying a truncated timestamp would skip rows created in the same millisecond. Reading the cursor row's own stored position has full precision by construction and needs no encoding.
+- *Why the anchor is read in its own query*: a correlated subquery yields `NULL` for a cursor that names no link, and a `NULL` row comparison drops every row, so an invented or cross-environment cursor would read as the empty last page. A separate primary-key lookup tells the two apart and rejects the unknown cursor with `400`. It also leaves the page query with literal values, which is the plain index-friendly keyset form.
 - *Why not total counts*: a count is a second query per page for a number the first UI does not need.
 
 ### 5. Filters: one status, one tag
 
-`status` is the link status enum. `tag` is trimmed and lowercased on input, must be 1 to 50 characters (the contract's tag bounds), and matches with `latest.result->'tags' ? $tag` against the latest enrichment, so a link whose earlier enrichment carried the tag but whose latest does not is excluded, consistent with the facets shown. No GIN index: the filter runs after the LATERAL join over a personal-scale table; add one when a measurement says so.
+`status` is the link status enum. `tag` is trimmed and lowercased on input, bounded by the contract's exported `TAG_MAX_LENGTH`, and matches with `latest.result->'tags' ? $tag` against the latest enrichment, so a link whose earlier enrichment carried the tag but whose latest does not is excluded. No GIN index: the filter runs after the LATERAL join over a personal-scale table; add one when a measurement says so.
+
+The filter is additionally gated on the stored result carrying the current contract version. The facets serve tags only after `validateEnrichmentResult` succeeds, so without the gate a link could match a tag filter while rendering an empty tag list. The gate is not full validation, and deliberately so: encoding the contract's field rules into SQL predicates would duplicate the contract in a third place. It covers the one failure mode that will actually occur, a later contract version leaving older rows behind, and the residual gap is a row that claims the current version but violates its rules, which the worker's own validation prevents on write.
 
 Multiple tags, tag negation, and sorting are deferred; each is an additive query parameter later.
 

@@ -18,13 +18,17 @@ The API SHALL serve `GET /links` returning stored links ordered by creation time
 - **WHEN** a client sends `GET /links?limit=0`, `GET /links?limit=101`, or `GET /links?cursor=not-a-cursor`
 - **THEN** the response is `400 Bad Request` with a JSON error body
 
+#### Scenario: A cursor naming no stored link is rejected
+- **WHEN** a client sends `GET /links?cursor=<a well-formed UUID that matches no link>`
+- **THEN** the response is `400 Bad Request`, distinguishable from the empty last page
+
 #### Scenario: Empty library
 - **GIVEN** no stored links match
 - **WHEN** a client sends `GET /links`
 - **THEN** the response is `200 OK` with `items: []` and `next_cursor: null`
 
 ### Requirement: List filters by status and tag
-`GET /links` SHALL accept `status` (one of `pending`, `enriched`, `failed`) and `tag` (a single tag) as optional filters, combinable. `tag` SHALL be trimmed and lowercased before matching and SHALL be 1 to 50 characters after that; a link matches when the tag is one of the tags of its latest valid enrichment. Links without an enrichment SHALL NOT match any tag filter.
+`GET /links` SHALL accept `status` (one of `pending`, `enriched`, `failed`) and `tag` (a single tag) as optional filters, combinable. `tag` SHALL be trimmed and lowercased before matching and SHALL be 1 to 50 characters after that; a link matches when the tag is one of the tags of its latest enrichment and that enrichment carries the current contract version. Links without an enrichment SHALL NOT match any tag filter, and neither SHALL links whose latest stored result carries another contract version, which is also the version the served tags fail to validate.
 
 #### Scenario: Filter by status
 - **GIVEN** links in status `pending`, `enriched`, and `failed`
@@ -40,6 +44,11 @@ The API SHALL serve `GET /links` returning stored links ordered by creation time
 - **GIVEN** a link with an older enrichment tagged `["python"]` and a newer enrichment tagged `["rust"]`
 - **WHEN** a client sends `GET /links?tag=python`
 - **THEN** the link is not returned
+
+#### Scenario: Tags on an outdated contract version do not match
+- **GIVEN** a link whose latest stored result carries a contract version other than the current one and lists the tag `python`
+- **WHEN** a client sends `GET /links?tag=python`
+- **THEN** the link is not returned, matching the empty `tags` its own representation serves
 
 #### Scenario: Invalid filter values are rejected
 - **WHEN** a client sends `GET /links?status=done` or `GET /links?tag=` or a `tag` longer than 50 characters

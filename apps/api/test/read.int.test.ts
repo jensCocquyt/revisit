@@ -160,6 +160,23 @@ describe("GET /links against PostgreSQL", () => {
     await createLink("none");
     expect(await list(`tag=${tag}`)).toEqual({ items: [], next_cursor: null });
   });
+
+  it("never matches a tag on a result carrying another contract version", async () => {
+    const tag = uniqueTag("stale");
+    const stale = await createLink("stale");
+    await enrich(stale, { result: { ...tagged(tag), contract_version: "v1" } });
+    const current = await createLink("stale");
+    await enrich(current, { result: tagged(tag) });
+
+    const page = await list(`tag=${tag}`);
+    expect(page.items.map((item) => item.id)).toEqual([current]);
+  });
+
+  it("rejects a well-formed cursor that names no stored link", async () => {
+    const res = await app.request(`/links?cursor=${randomUUID()}`);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "invalid_request" });
+  });
 });
 
 describe("GET /links/:id and /enrichment against PostgreSQL", () => {

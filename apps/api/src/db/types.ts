@@ -54,6 +54,15 @@ export class IdempotencyKeyConflictError extends Error {
   }
 }
 
+// The paging cursor names no stored link, so the page it asks for has no
+// position; serving an empty page would read as "you reached the end".
+export class CursorNotFoundError extends Error {
+  constructor() {
+    super("cursor does not identify a stored link");
+    this.name = "CursorNotFoundError";
+  }
+}
+
 export interface Db {
   ping(): Promise<void>;
   getLink(id: string): Promise<LinkRow | null>;

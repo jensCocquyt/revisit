@@ -7,7 +7,7 @@ export const CONTRACT_VERSION = "v2";
 // contract changes. v2 is flat: tags plus an optional, complete deadline
 // whose source quotes the page sentence asserting the date.
 
-const TAG_MAX_LENGTH = 50;
+export const TAG_MAX_LENGTH = 50;
 const TAGS_MAX_COUNT = 5;
 const OFFSET_DESCRIPTION =
   "Code-point offset into the stored extracted text, as the worker computed it; locate quotes by text, not by offset, in UTF-16 consumers.";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
-import type { ListLinksInput } from "../src/db/index.js";
+import { CursorNotFoundError, type ListLinksInput } from "../src/db/index.js";
 import { fakeDb } from "./fakes.js";
 import { storedLink } from "./results.js";
 
@@ -52,6 +52,19 @@ describe("GET /links query handling", () => {
   it("returns an empty page for an empty library", async () => {
     const { app } = capturingApp({ items: [], hasMore: false });
     expect(await (await app.request("/links")).json()).toEqual({ items: [], next_cursor: null });
+  });
+
+  it("rejects a cursor that names no stored link", async () => {
+    const app = createApp(
+      fakeDb({
+        listLinks: async () => {
+          throw new CursorNotFoundError();
+        },
+      }),
+    );
+    const res = await app.request("/links?cursor=0d9f6a1c-3b6e-4c2d-9f6a-1c3b6e4c2d9f");
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "invalid_request" });
   });
 
   it.each([

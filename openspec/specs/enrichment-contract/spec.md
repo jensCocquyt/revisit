@@ -1,7 +1,7 @@
 # enrichment-contract Specification
 
 ## Purpose
-The enrichment result contract and the enricher implementations behind the `Enricher` seam: the v2 result shape defined natively in both languages (Zod and pydantic) with shared fixtures as the conformance contract, the deterministic stub as the default enricher, the Bedrock-backed enricher selected by environment, prompt separation that treats page content as untrusted data, closed-world tag assignment against the library's vocabulary, and the model metadata (prompt version, model ID, latency, token usage) that outcomes carry.
+The enrichment result contract and the enricher implementations behind the `Enricher` seam: the v2 result shape defined natively in both languages (Zod and pydantic) with shared fixtures as the conformance contract, the deterministic stub as the default enricher, the Bedrock- and Ollama-backed enrichers sharing one prompt and selected by environment, prompt separation that treats page content as untrusted data, closed-world tag assignment against the library's vocabulary, and the model metadata (prompt version, model ID, latency, token usage) that outcomes carry.
 ## Requirements
 ### Requirement: Contract expresses the build-spec result shape
 The v2 contract SHALL include `contract_version` (`"v2"`), `summary`, `key_takeaway`, `tags`, an optional `deadline`, and `evidence` items with quote and offsets. `tags` SHALL contain 1–5 unique labels, each trimmed, lowercase, and 1–50 characters. `deadline`, when present, SHALL be complete: `date` (ISO date), `reason` (1–500 chars), and `source` — an evidence item quoting the sentence in the page text that asserts the date.

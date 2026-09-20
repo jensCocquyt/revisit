@@ -9,8 +9,12 @@ if (!databaseUrl) {
 }
 
 const port = Number(process.env.API_PORT ?? 3000);
+const corsOrigins = (process.env.CORS_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);
 const db = createDb(databaseUrl);
-const app = createApp(db, { apiKey: process.env.API_KEY });
+const app = createApp(db, { apiKey: process.env.API_KEY, corsOrigins });
 
 serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, (info) => {
   console.log(JSON.stringify({ msg: "api listening", port: info.port }));

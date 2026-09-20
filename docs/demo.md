@@ -27,21 +27,22 @@ recovery section).
 
 | Step | What happens | What it proves |
 |---|---|---|
-| 1–2 | Save a date-bound page (default: a software end-of-life tracker), wait for `enriched`, show the stored enrichment | The full cloud path works: API key accepted, link + job created transactionally, worker claimed the job, fetched safely, called Bedrock with its task role, persisted idempotently. The `deadline` carries `date`, `reason`, and an evidence-backed `source`; the `evidence_resolves` field in the output is computed by matching every quote against the stored extracted text — evidence is shown only because it resolves. |
+| 1–2 | Save a date-bound page (default: a software end-of-life tracker), wait for `enriched`, show the stored enrichment | The full cloud path works: API key accepted, link + job created transactionally, worker claimed the job, fetched safely, called Bedrock with its task role, persisted idempotently. The `deadline` carries `date`, `reason`, and an evidence-backed `source`; the enrichment endpoint serves an evidence item only when its quote is verbatim in the stored extracted text, so everything shown resolves. |
 | 3–4 | Save an evergreen essay, show its enrichment | The model does not invent urgency: `deadline` is null when the page ties value to no concrete date. Tags are still assigned from the closed vocabulary. |
 | 5–6 | Save an image URL, wait for `failed`, show the job row | The failure taxonomy in production: the fetcher rejects the content type terminally (`unsupported_content_type`), `last_error` carries the stable code, and the same code is visible in CloudWatch as the `JobFailedByCode` metric and on the `revisit-demo` dashboard. |
 | 7–8 | Run the runbook requeue scoped to the failed link, watch it reprocess | Operational recovery works against RDS exactly as documented: the job returns to `pending` with a fresh retry budget, a worker reclaims it, and it reaches a terminal state again. The cause here is permanent (an image is never enrichable), so it fails again — the point is the recovery path, which in a real incident (transient DNS, model quota) converges on `enriched`. |
 
-Inspection in steps 2, 4, and 6 reads the database directly: the API
-deliberately exposes only the link row so far (no enrichment read endpoint —
-a deliberate MVP deferral), and the SQL join against `content_versions` is
-also what makes evidence resolution checkable rather than asserted.
+Steps 2 and 4 read `GET /links/:id/enrichment`; only step 6 (the job row) and
+step 7 (the requeue) touch the database directly, which is what `DATABASE_URL`
+is still for.
 
 ## Bruno against the cloud
 
 `bruno/environments/cloud.bru` carries `baseUrl` and `apiKey`. Fill both in
-from the terraform outputs, select the cloud environment, and the same three
-requests (health, save, get) run against the deployed API:
+from the terraform outputs, select the cloud environment, and the same five
+requests (health, save, list, get, enrichment) run against the deployed API.
+"Get enrichment" answers 404 until the worker has finished the link saved by
+"Save link"; re-run it after a few seconds.
 
 ```bash
 cd bruno

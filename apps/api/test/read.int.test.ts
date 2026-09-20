@@ -28,12 +28,13 @@ function uniqueTag(label: string): string {
   return `${label}-${randomUUID().slice(0, 8)}`;
 }
 
-async function createLink(label: string): Promise<string> {
+async function createLink(label: string, createdAt?: string): Promise<string> {
   const id = randomUUID();
   const url = `https://example.com/${label}/${id}`;
   const result = await pool.query<{ id: string }>(
-    "INSERT INTO links (url, normalized_url) VALUES ($1, $1) RETURNING id",
-    [url],
+    `INSERT INTO links (url, normalized_url, created_at)
+     VALUES ($1, $1, COALESCE($2::timestamptz, now())) RETURNING id`,
+    [url, createdAt ?? null],
   );
   return result.rows[0].id;
 }
@@ -170,6 +171,22 @@ describe("GET /links against PostgreSQL", () => {
 
     const page = await list(`tag=${tag}`);
     expect(page.items.map((item) => item.id)).toEqual([current]);
+  });
+
+  it("keeps rows that share a millisecond with the cursor", async () => {
+    const tag = uniqueTag("micros");
+    const cursorLink = await createLink("micros", "2026-01-01T10:00:00.123456Z");
+    const sameMillisecond = await createLink("micros", "2026-01-01T10:00:00.123200Z");
+    const earlier = await createLink("micros", "2026-01-01T10:00:00.100000Z");
+    for (const id of [cursorLink, sameMillisecond, earlier]) {
+      await enrich(id, { result: tagged(tag) });
+    }
+
+    const first = await list(`tag=${tag}&limit=1`);
+    expect(first.items.map((item) => item.id)).toEqual([cursorLink]);
+
+    const second = await list(`tag=${tag}&limit=5&cursor=${first.next_cursor}`);
+    expect(second.items.map((item) => item.id)).toEqual([sameMillisecond, earlier]);
   });
 
   it("rejects a well-formed cursor that names no stored link", async () => {

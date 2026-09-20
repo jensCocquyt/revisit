@@ -38,8 +38,10 @@ export async function listLinks(pool: pg.Pool, input: ListLinksInput): Promise<L
     );
   }
   if (input.afterId) {
-    const anchor = await anchorPosition(pool, input.afterId);
-    conditions.push(`(l.created_at, l.id) < (${bind(anchor.created_at)}, ${bind(anchor.id)})`);
+    await requireCursorLink(pool, input.afterId);
+    conditions.push(
+      `(l.created_at, l.id) < (SELECT c.created_at, c.id FROM links c WHERE c.id = ${bind(input.afterId)})`,
+    );
   }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
@@ -108,20 +110,17 @@ interface RawLinkRow {
   latest_result: unknown;
 }
 
-// Reading the cursor row's own position keeps full timestamp precision and
-// tells an unknown cursor apart from a page that ended.
-async function anchorPosition(
-  pool: pg.Pool,
-  id: string,
-): Promise<{ created_at: Date; id: string }> {
-  const result = await pool.query<{ created_at: Date; id: string }>(
-    "SELECT created_at, id FROM links WHERE id = $1",
+// Only existence: the page query compares the cursor row's timestamp inside
+// postgres, because reading it into a JS Date would truncate microseconds and
+// drop rows created in the same millisecond.
+async function requireCursorLink(pool: pg.Pool, id: string): Promise<void> {
+  const result = await pool.query<{ found: boolean }>(
+    "SELECT EXISTS (SELECT 1 FROM links WHERE id = $1) AS found",
     [id],
   );
-  if (!result.rows[0]) {
+  if (!result.rows[0].found) {
     throw new CursorNotFoundError();
   }
-  return result.rows[0];
 }
 
 function mapLink(row: RawLinkRow): LinkRow {

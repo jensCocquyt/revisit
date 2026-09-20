@@ -81,7 +81,7 @@ Two uniqueness rules encode the correctness model: `enrichments (link_id, conten
 
 ## Process: OpenSpec
 
-This project is spec-driven via OpenSpec (`openspec/config.yaml`, skills under `.claude/skills/`, commands under `.claude/commands/opsx/`). Work is proposed as a change under `openspec/changes/<change-id>/` containing `proposal.md`, `design.md`, `tasks.md`, and `specs/<capability>/spec.md` (Given/When/Then, `## ADDED Requirements`). Archiving moves the change to `openspec/changes/archive/YYYY-MM-DD-<change-id>/` and prompts to sync its delta specs into `openspec/specs/<capability>/spec.md` (the durable specs). Authoring rules live in `openspec/config.yaml`; read it rather than relying on a restatement here.
+This project is spec-driven via OpenSpec (`openspec/config.yaml`, skills under `.claude/skills/`, commands under `.claude/commands/opsx/`). Work is proposed as a change under `openspec/changes/<change-id>/` containing `proposal.md`, `design.md`, `tasks.md`, and `specs/<capability>/spec.md` (Given/When/Then, `## ADDED Requirements`). Archiving moves the change to `openspec/changes/archive/YYYY-MM-DD-<change-id>/` and prompts to sync its delta specs into `openspec/specs/<capability>/spec.md` (the durable specs). Authoring rules for each artifact live in `openspec/config.yaml`; read it rather than relying on a restatement here. When applying a change: keep the stub as the default test path, run focused tests before the full suite, and challenge specs rather than assume.
 
 Scope rule, which applies to code review too: build only what MVP 1 uses. Brokers, object storage, embeddings, and auth are deliberately deferred.
 

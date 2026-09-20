@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-This starts PostgreSQL, applies migrations, and runs the API and worker. No external API keys are required — the deterministic stub enricher is the default.
+This starts PostgreSQL, applies migrations, and runs the API and worker. No external API keys are required: the deterministic stub enricher is the default. To exercise the model path locally without cloud credentials, run [Ollama](https://ollama.com) on your machine and set `ENRICHER=ollama` and `OLLAMA_MODEL` (for example `llama3.2`) in `.env`; see the runbook for lease sizing and networking notes.
 
 - API health: `curl http://localhost:3000/health`
 - Service status: `docker compose ps` (all services report healthy)

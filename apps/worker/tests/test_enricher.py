@@ -69,6 +69,13 @@ def test_bedrock_is_selectable(monkeypatch: pytest.MonkeyPatch):
     assert isinstance(get_enricher("bedrock"), BedrockEnricher)
 
 
+def test_ollama_is_selectable(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("OLLAMA_MODEL", "llama3.2")
+    from worker.enrichers.ollama import OllamaEnricher
+
+    assert isinstance(get_enricher("ollama"), OllamaEnricher)
+
+
 def test_unknown_enricher_rejected():
     with pytest.raises(ValueError, match="Unknown enricher"):
         get_enricher("gpt")

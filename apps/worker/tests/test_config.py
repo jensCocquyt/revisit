@@ -11,6 +11,8 @@ from worker.config import (
     fetch_timeout_seconds,
     lease_seconds,
     max_attempts,
+    ollama_base_url,
+    ollama_model,
     poll_seconds,
     worker_id,
 )
@@ -82,6 +84,20 @@ def test_fetch_respects_env(monkeypatch: pytest.MonkeyPatch):
     assert fetch_allowed_content_types() == frozenset({"text/html", "text/plain"})
     assert fetch_allowed_hosts() == frozenset({"api", "fixture.internal"})
     assert bedrock_model_id() == "anthropic.claude-test-v1"
+
+
+def test_ollama_defaults(monkeypatch: pytest.MonkeyPatch):
+    for var in ("OLLAMA_BASE_URL", "OLLAMA_MODEL"):
+        monkeypatch.delenv(var, raising=False)
+    assert ollama_base_url() == "http://localhost:11434"
+    assert ollama_model() == ""
+
+
+def test_ollama_respects_env(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+    monkeypatch.setenv("OLLAMA_MODEL", "llama3.2")
+    assert ollama_base_url() == "http://host.docker.internal:11434"
+    assert ollama_model() == "llama3.2"
 
 
 def test_worker_id_is_host_and_pid():

@@ -53,5 +53,13 @@ def bedrock_model_id() -> str:
     return os.environ.get("BEDROCK_MODEL_ID", "")
 
 
+def ollama_base_url() -> str:
+    return os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+
+
+def ollama_model() -> str:
+    return os.environ.get("OLLAMA_MODEL", "")
+
+
 def worker_id() -> str:
     return f"{socket.gethostname()}-{os.getpid()}"

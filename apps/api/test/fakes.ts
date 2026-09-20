@@ -4,6 +4,8 @@ export function fakeDb(overrides: Partial<Db> = {}): Db {
   return {
     ping: async () => {},
     getLink: async () => null,
+    listLinks: async () => ({ items: [], hasMore: false }),
+    getEnrichment: async () => null,
     findIdempotencyKey: async () => null,
     createLinkWithJob: async () => {
       throw new Error("not implemented in fake");

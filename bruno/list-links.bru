@@ -1,0 +1,31 @@
+meta {
+  name: List links
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/links?limit=20
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 20
+  ~status: enriched
+  ~tag: python
+}
+
+headers {
+  x-api-key: {{apiKey}}
+}
+
+docs {
+  Lists links newest first with their `tags` and `deadline` facets. Enable the
+  `status` or `tag` query parameter to filter; `tag` matches the latest
+  enrichment's tags case-insensitively. Follow `next_cursor` by adding
+  `cursor=<value>` to fetch the next page.
+
+  Against the cloud environment this needs only `apiKey`; freshly saved links
+  show `tags: []` until the worker has enriched them.
+}

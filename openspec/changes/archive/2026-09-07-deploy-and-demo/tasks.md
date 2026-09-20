@@ -10,7 +10,7 @@
 ## 2. Terraform bootstrap root (durable resources)
 
 - [x] 2.1 Write `terraform/bootstrap/`: S3 state bucket (versioned, SSE, private), ECR repositories for api/worker/migrate, deploy IAM role trusting the existing OIDC provider with the id-embedded `sub` claim (runbook format), service-scoped policy with IAM path and state-bucket resource scoping
-- [ ] 2.2 Apply bootstrap with operator credentials; set repo variables `AWS_DEPLOY_ROLE_ARN` and `BEDROCK_MODEL_ID`
+- [x] 2.2 Apply bootstrap with operator credentials; set repo variables `AWS_DEPLOY_ROLE_ARN` and `BEDROCK_MODEL_ID`
 - [x] 2.3 Document bootstrap in the runbook: what it creates, why it is not ephemeral, the deploy-role scoping decision
 
 ## 3. Terraform stack root (ephemeral environment)
@@ -45,11 +45,11 @@
 
 ## 8. Provision and demo (merge gate)
 
-- [ ] 8.1 Dispatch deploy from zero (bootstrap-only account) and verify: healthy `/health` via ALB URL, migrations applied, worker enriching with Bedrock via task role
+- [x] 8.1 Dispatch deploy from zero (bootstrap-only account) and verify: healthy `/health` via ALB URL, migrations applied, worker enriching with Bedrock via task role
 - [x] 8.2 Write `scripts/demo-cloud.sh` (BASE_URL + API_KEY params): save deadline-bearing and evergreen links, poll to `enriched`, print tags/evidence/deadline contrast; terminal-failure link, show `failed` + CloudWatch `error_code`, runbook requeue via psql against RDS, show recovery
-- [ ] 8.3 Add `bruno/environments/cloud.bru` (`baseUrl`, `apiKey`) and run the collection against the cloud
-- [ ] 8.4 Run the full demo script against the cloud URL end to end; verify dashboard and alarm show the induced failure
-- [ ] 8.5 Verify the round trip: `destroy` → `apply` → abbreviated smoke (health + one enrichment) with no manual cleanup
+- [x] 8.3 Add `bruno/environments/cloud.bru` (`baseUrl`, `apiKey`) and run the collection against the cloud
+- [x] 8.4 Run the full demo script against the cloud URL end to end; verify dashboard and alarm show the induced failure
+- [x] 8.5 Verify the round trip: `destroy` → `apply` → abbreviated smoke (health + one enrichment) with no manual cleanup
 
 ## 9. Documentation
 

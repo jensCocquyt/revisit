@@ -2,7 +2,6 @@
 
 ## Purpose
 The worker's enrichment-job lifecycle: polling and claiming with `FOR UPDATE SKIP LOCKED` and a processing lease, stale-lease recovery, the full processing pipeline (safe fetch, extraction, content versioning, enrichment through the `Enricher` seam, evidence verification), idempotent result persistence, terminal-vs-transient failure handling with bounded-backoff retries, status write-back visible through `GET /links/:id`, and the configuration and logging around all of it.
-
 ## Requirements
 ### Requirement: Claim one eligible job with a lease
 The worker SHALL poll for eligible enrichment jobs and claim at most one per iteration inside a short transaction using `FOR UPDATE SKIP LOCKED`. A job is eligible when its status is `pending` and `available_at <= now()`. Claiming SHALL set status to `processing`, `locked_until` to now plus the configured lease duration, and `locked_by` to the worker's instance identifier, and SHALL commit before any enrichment work begins. Only one worker may hold a valid lease for a job at a time.
@@ -154,7 +153,7 @@ When a transient failure occurs on the final allowed attempt (3 by default), the
 - **AND** `GET /links/:id` returns `status: "failed"`
 
 ### Requirement: Processing configuration via environment
-Poll interval, lease duration, maximum attempts, fetch limits (redirects, size, duration, content types, host allowlist), enricher selection, and Bedrock settings (model ID, region) SHALL be configurable via environment variables with working defaults documented in `.env.example` and wired through Docker Compose. Defaults SHALL keep the stub as the enricher and let the local stack enrich a saved link without any configuration edits or cloud credentials.
+Poll interval, lease duration, maximum attempts, fetch limits (redirects, size, duration, content types, host allowlist), enricher selection, and the selected provider's settings (Bedrock: model ID and region; Ollama: server base URL and model) SHALL be configurable via environment variables with working defaults documented in `.env.example` and wired through Docker Compose. Defaults SHALL keep the stub as the enricher and let the local stack enrich a saved link without any configuration edits or cloud credentials. In Docker Compose the Ollama base URL SHALL default to the host machine, where Ollama runs, and the worker container SHALL be able to resolve that host name.
 
 #### Scenario: Defaults work out of the box
 - **WHEN** the stack starts from an unedited `.env.example`
@@ -163,6 +162,10 @@ Poll interval, lease duration, maximum attempts, fetch limits (redirects, size, 
 #### Scenario: Bedrock is opt-in via environment only
 - **WHEN** `ENRICHER=bedrock` and AWS settings are provided via environment
 - **THEN** the worker uses the Bedrock enricher without any code change
+
+#### Scenario: Ollama is opt-in via environment only
+- **WHEN** `ENRICHER=ollama` and `OLLAMA_MODEL` are provided via environment, with Ollama running on the host
+- **THEN** the worker container reaches the host's Ollama server at the default base URL and enriches a saved link without any code change
 
 ### Requirement: Structured processing logs
 The worker SHALL log job lifecycle events (claim, completion, failure, reschedule) as single-line JSON including `link_id` and `job_id`. Failure and reschedule events SHALL additionally include the attempt number just recorded and the stable error code (the prefix of `last_error` before its first `:`), so failures are countable and groupable from logs alone.
@@ -174,3 +177,4 @@ The worker SHALL log job lifecycle events (claim, completion, failure, reschedul
 #### Scenario: Failure events are countable
 - **WHEN** a job attempt fails, whether rescheduled or terminal
 - **THEN** the emitted event includes the attempt number and the stable error code alongside `job_id` and `link_id`
+

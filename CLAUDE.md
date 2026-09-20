@@ -14,7 +14,9 @@ There is **no root `package.json` and no workspace tooling**. Every command runs
 
 ```bash
 # apps/api
-npm run dev | build | format          # tsx watch | tsc -> dist/ | Biome, writes fixes
+npm run dev                           # tsx watch
+npm run build                         # tsc -> dist/
+npm run format                        # Biome, writes fixes
 npm run lint                          # biome ci . , check only, fails on unformatted code
 npm test                              # vitest run, needs DATABASE_URL (see below)
 
@@ -58,7 +60,7 @@ The `contracts/` directory is **test-time only**: runtime images don't contain i
 
 ### AI seam
 
-`worker/enrichers/` holds the seam and its implementations, all re-exported from `worker.enrichers`. `base.py` defines `Enricher` (an abstract base class; the owner prefers ABCs over `Protocol` for explicitness), the `EnrichmentInput`/`EnrichmentOutcome` dataclasses, and the `get_enricher` factory. `stub.py` derives a deterministic contract-valid result from a SHA-256 of `(content, note, goal)`, returning pydantic model instances, not dicts. Model-backed enrichers subclass `ModelEnricher` (`model.py`), which owns the prompt, the contract schema with field guidance, the content cap, tag normalization, strict validation, timing, and error classification; a provider subclass implements only `_complete(system, user, schema)` and returns the JSON payload plus token counts. `bedrock.py` (forced tool call via Converse) and `ollama.py` (local `/api/chat`, local testing only) are the two transports.
+`worker/enrichers/` holds the seam and its implementations. `base.py` defines `Enricher` (an abstract base class; the owner prefers ABCs over `Protocol` for explicitness), the `EnrichmentInput`/`EnrichmentOutcome` dataclasses, and the `get_enricher` factory, all re-exported from `worker.enrichers`; the implementations are imported from their own modules. `stub.py` derives a deterministic contract-valid result from a SHA-256 of `(content, note, goal)`, returning pydantic model instances, not dicts. Model-backed enrichers subclass `ModelEnricher` (`model.py`), which owns the prompt, the contract schema with field guidance, the content cap, tag normalization, strict validation, timing, and error classification; a provider subclass implements only `_complete(system, user, schema)` and returns the JSON payload plus token counts. `bedrock.py` (forced tool call via Converse) and `ollama.py` (local `/api/chat`, local testing only) are the two transports.
 
 Rules that are not visible from the code: selected by the `ENRICHER` env var, default `stub`, and the stub stays the default test path. Each provider's `prompt_version` is `<provider>-<PROMPT_VERSION>`; bump `PROMPT_VERSION` in `model.py` whenever the shared prompt changes. New providers subclass `ModelEnricher` in their own module. Failure-taxonomy errors (`FetchTerminalError`, `FetchTransientError`, `EnricherError`) live together in `worker/errors.py`.
 

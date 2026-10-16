@@ -52,9 +52,9 @@ If there is no PR for the current branch, say so and STOP.
 3. **Triage every thread before editing anything**
 
    For each unresolved thread classify it as one of:
-   - **fix** — the comment is right; code (or spec/fixture/doc) should change.
-   - **won't fix** — the comment is wrong or out of scope for this change; needs a reasoned reply, no code change. Check scope against `openspec/changes/<id>/proposal.md` (out-of-scope section) before deciding.
-   - **question back** — genuinely ambiguous; needs a clarifying question, no code change yet.
+   - **fix**: the comment is right; code (or a doc) should change.
+   - **won't fix**: the comment is wrong or out of scope for this change; needs a reasoned reply, no code change. Check scope against the step plan in `tasks/todo.md` before deciding.
+   - **question back**: genuinely ambiguous; needs a clarifying question, no code change yet.
 
    Threads opened by the review workflow start with a severity label (**blocking**, **should**, **nit**). Use it as the starting point, not the verdict: a `nit` can still be a fix, and a `blocking` can be a won't fix with a reasoned reply.
 
@@ -62,10 +62,9 @@ If there is no PR for the current branch, say so and STOP.
 
 4. **Implement the fixes**
 
-   Apply project rules while fixing:
-   - Contract changes touch both `apps/api/src/contract.ts` and `worker/contract.py` plus boundary fixtures in `contracts/enrichment/fixtures/` in the same commit.
-   - Run focused tests for what changed first, then the affected suite (`npm test` in `apps/api`, `uv run pytest` in `apps/worker`).
-   - Run the relevant formatter (`npm run format` / `uv run ruff format .`).
+   Apply project rules while fixing (CLAUDE.md, `tasks/lessons.md`):
+   - Run focused tests for what changed first, then the affected suite.
+   - Run the relevant formatter.
 
 5. **Commit and push once**
 

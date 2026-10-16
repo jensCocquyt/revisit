@@ -1,8 +1,0 @@
-{
-  "expected_tags": [
-    "changelog",
-    "api"
-  ],
-  "expected_deadline": null,
-  "note": "we integrate their API, watch for breaking changes"
-}

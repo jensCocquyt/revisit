@@ -52,9 +52,9 @@ If there is no PR for the current branch, say so and STOP.
 3. **Triage every thread before editing anything**
 
    For each unresolved thread classify it as one of:
-   - **fix** — the comment is right; code (or spec/fixture/doc) should change.
+   - **fix**: the comment is right; code (or a doc) should change.
    - **won't fix**: the comment is wrong or out of scope for this change; needs a reasoned reply, no code change. Check scope against the step plan in `tasks/todo.md` before deciding.
-   - **question back** — genuinely ambiguous; needs a clarifying question, no code change yet.
+   - **question back**: genuinely ambiguous; needs a clarifying question, no code change yet.
 
    Threads opened by the review workflow start with a severity label (**blocking**, **should**, **nit**). Use it as the starting point, not the verdict: a `nit` can still be a fix, and a `blocking` can be a won't fix with a reasoned reply.
 

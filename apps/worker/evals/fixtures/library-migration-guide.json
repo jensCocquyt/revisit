@@ -1,8 +1,0 @@
-{
-  "expected_tags": [
-    "fastify",
-    "migration"
-  ],
-  "expected_deadline": null,
-  "goal": "get our services off Fastify 4 before maintenance ends"
-}

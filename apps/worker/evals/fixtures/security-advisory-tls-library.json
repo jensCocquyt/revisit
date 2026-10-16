@@ -1,8 +1,0 @@
-{
-  "expected_tags": [
-    "security",
-    "tls"
-  ],
-  "expected_deadline": null,
-  "note": "check whether any of our images bundle libhandshake 2.x"
-}

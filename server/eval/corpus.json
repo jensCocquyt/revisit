@@ -125,5 +125,36 @@
     "key": "dentist",
     "kind": "text",
     "text": "Dentist appointment moved to Thursday 21 November at 9:15. Bring the referral letter."
+  },
+  {
+    "key": "remote-burnout",
+    "kind": "link",
+    "url": "https://notes.example.com/remote-teams-running-on-empty",
+    "page": "remote-burnout.html"
+  },
+  {
+    "key": "kempen-route",
+    "kind": "link",
+    "url": "https://opdefiets.example.be/routes/kempen-kanaal",
+    "page": "kempen-fietsroute.html",
+    "note": "voor een zondag in mei"
+  },
+  {
+    "key": "pain-perdu",
+    "kind": "link",
+    "url": "https://cuisine.example.fr/recettes/pain-perdu",
+    "page": "pain-perdu.html"
+  },
+  {
+    "key": "partial-indexes",
+    "kind": "link",
+    "url": "https://db.example.dev/posts/partial-indexes?utm_source=newsletter",
+    "page": "partial-indexes.html"
+  },
+  {
+    "key": "event-sourcing-talk",
+    "kind": "link",
+    "url": "https://talks.example.org/watch/8812",
+    "note": "talk on event sourcing pitfalls, watch later"
   }
 ]

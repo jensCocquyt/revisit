@@ -8,6 +8,9 @@ import type { Item, SearchResults } from "../src/contract.js";
 import { findItem } from "../src/db/items.js";
 import { migrate } from "../src/db/migrate.js";
 import { createCohereEmbed } from "../src/embedding/cohere-on-bedrock.js";
+import type { FetchPage } from "../src/links/fetch-page.js";
+import { normalizeLinkUrl } from "../src/links/normalize-url.js";
+import { readLink } from "../src/links/read-link.js";
 import { processItem } from "../src/processing/process-items.js";
 
 const hitDepth = 5;
@@ -26,36 +29,57 @@ const embed = createCohereEmbed(
 );
 const app = createApp({ pool, embed, processor: { wake: () => {} } });
 
+const note = z.string().optional();
 const corpus = z
   .array(
-    z.object({
-      key: z.string(),
-      kind: z.literal("text"),
-      text: z.string(),
-      note: z.string().optional(),
-    }),
+    z.discriminatedUnion("kind", [
+      z.object({ key: z.string(), kind: z.literal("text"), text: z.string(), note }),
+      z.object({
+        key: z.string(),
+        kind: z.literal("link"),
+        url: z.string(),
+        page: z.string().optional(),
+        note,
+      }),
+    ]),
   )
   .parse(await readJson("corpus.json"));
 const queries = z
   .array(z.object({ query: z.string(), expected: z.string() }))
   .parse(await readJson("queries.json"));
 
+// Links read saved pages instead of the network; a link without a page cannot be read.
+const pageByUrl = new Map(
+  corpus.flatMap((entry) =>
+    entry.kind === "link" && entry.page ? [[normalizeLinkUrl(entry.url), entry.page]] : [],
+  ),
+);
+const fetchSavedPage: FetchPage = async (url) => {
+  const page = pageByUrl.get(url);
+  if (!page) throw new Error("the site could not be found");
+  const body = await readFile(new URL(`pages/${page}`, import.meta.url));
+  return { url, contentType: "text/html; charset=utf-8", body };
+};
+const processing = { pool, embed, readLink: (url: string) => readLink(url, fetchSavedPage) };
+
 const keyByItemId = new Map<string, string>();
 for (const entry of corpus) {
-  const { key, ...body } = entry;
+  const { key, ...saved } = entry;
+  const body =
+    saved.kind === "link" ? { kind: saved.kind, url: saved.url, note: saved.note } : saved;
   const response = await app.request("/api/items", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
   if (response.status !== 201) throw new Error(`saving ${key} failed: ${await response.text()}`);
-  const saved = (await response.json()) as Item;
-  const pending = await findItem(pool, saved.id);
+  const item = (await response.json()) as Item;
+  const pending = await findItem(pool, item.id);
   if (!pending) throw new Error(`${key} disappeared`);
-  await processItem({ pool, embed }, pending);
-  const processed = await findItem(pool, saved.id);
+  await processItem(processing, pending);
+  const processed = await findItem(pool, item.id);
   if (processed?.status !== "ready") throw new Error(`${key} failed: ${processed?.error}`);
-  keyByItemId.set(saved.id, key);
+  keyByItemId.set(item.id, key);
 }
 
 let hits = 0;

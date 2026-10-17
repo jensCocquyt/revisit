@@ -19,13 +19,16 @@
     "@aws-sdk/client-bedrock-runtime": "^3.1152.0",
     "@hono/node-server": "^2.1.5",
     "@hono/zod-validator": "^0.9.1",
+    "@mozilla/readability": "^0.6.0",
     "hono": "^4.13.13",
+    "jsdom": "^29.1.1",
     "pg": "^8.23.1",
     "postgrator": "^8.0.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
+    "@types/jsdom": "^28.0.3",
     "@types/node": "^24.19.2",
     "@types/pg": "^8.23.1",
     "tsx": "^4.23.15",

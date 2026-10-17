@@ -23,6 +23,14 @@ export async function insertItem(db: Queryable, item: NewItem): Promise<Item> {
   return toItem(onlyRow(rows));
 }
 
+export async function findLinkItem(db: Queryable, url: string): Promise<Item | undefined> {
+  const { rows } = await db.query<ItemRow>(
+    `SELECT ${itemColumns()} FROM items WHERE kind = 'link' AND url = $1 LIMIT 1`,
+    [url],
+  );
+  return rows[0] && toItem(rows[0]);
+}
+
 export async function listRecentItems(db: Queryable, limit: number): Promise<Item[]> {
   const { rows } = await db.query<ItemRow>(
     `SELECT ${itemColumns()} FROM items ORDER BY created_at DESC, id DESC LIMIT $1`,
@@ -44,10 +52,11 @@ export async function deleteItem(db: Queryable, id: string): Promise<boolean> {
   return rowCount === 1;
 }
 
-export async function requeueFailedItem(db: Queryable, id: string): Promise<Item | undefined> {
+// Failed items and links whose page could not be read both carry an error.
+export async function requeueItemWithError(db: Queryable, id: string): Promise<Item | undefined> {
   const { rows } = await db.query<ItemRow>(
     `UPDATE items SET status = 'pending', error = NULL, processed_at = NULL
-     WHERE id = $1 AND status = 'failed'
+     WHERE id = $1 AND error IS NOT NULL
      RETURNING ${itemColumns()}`,
     [id],
   );

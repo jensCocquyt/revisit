@@ -8,17 +8,28 @@ export function CaptureBar() {
   const queryClient = useQueryClient();
   const save = useMutation({
     mutationFn: saveItem,
-    onSuccess: () => {
-      setText("");
-      setNote("");
-      queryClient.invalidateQueries({ queryKey: ["items"] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["items"] }),
   });
   const canSave = text.trim().length > 0 && !save.isPending;
+  const link = asLink(text);
 
   function submit(event?: FormEvent) {
     event?.preventDefault();
-    if (canSave) save.mutate({ kind: "text", text, note: note.trim() || undefined });
+    if (!canSave) return;
+    const optionalNote = note.trim() || undefined;
+    const [savedText, savedNote] = [text, note];
+    save.mutate(
+      link
+        ? { kind: "link", url: link, note: optionalNote }
+        : { kind: "text", text, note: optionalNote },
+      {
+        // Keep anything typed while the save was in flight.
+        onSuccess: () => {
+          setText((current) => (current === savedText ? "" : current));
+          setNote((current) => (current === savedNote ? "" : current));
+        },
+      },
+    );
   }
 
   return (
@@ -41,7 +52,7 @@ export function CaptureBar() {
           onChange={(event) => setNote(event.target.value)}
         />
         <button type="submit" disabled={!canSave}>
-          {save.isPending ? "Saving…" : "Save"}
+          {save.isPending ? "Saving…" : link ? "Save link" : "Save"}
         </button>
       </div>
       {save.error && (
@@ -51,4 +62,11 @@ export function CaptureBar() {
       )}
     </form>
   );
+}
+
+// A single http(s) address on its own is saved as a link; anything else as text.
+function asLink(text: string): string | null {
+  const candidate = text.trim();
+  if (!/^https?:\/\/\S+$/i.test(candidate)) return null;
+  return URL.canParse(candidate) ? candidate : null;
 }

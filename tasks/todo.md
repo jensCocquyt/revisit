@@ -67,9 +67,9 @@ Each slice is one PR and leaves something usable.
 - [x] CI workflow; README run instructions
 
 ### 1b. Links
-- [ ] Safe fetch and Readability extraction
-- [ ] Link capture and unreadable-page handling in the web app
-- [ ] Link items in the eval corpus
+- [x] Safe fetch and Readability extraction
+- [x] Link capture and unreadable-page handling in the web app
+- [x] Link items in the eval corpus
 
 ### 1c. Screenshots
 - [ ] Upload, storage and image endpoint
@@ -84,3 +84,4 @@ Each slice is one PR and leaves something usable.
 ## Review
 
 - **1a:** the eval loads 25 text items (English, Dutch, French, including near-duplicate topics as distractors) and finds all 16 vague queries at rank 1, most of them cross-language through meaning alone. Related passages score above 0.3 cosine similarity and unrelated ones below 0.22, so meaning matches below 0.25 are dropped; a nonsense query returns nothing. The web app talks to the server through types imported from `server/src/contract.ts` rather than Hono's RPC client, which would have pulled the server's whole dependency graph into the web type-check.
+- **1b:** five link items join the eval (four saved pages wrapped in navigation and footer boilerplate, one whose page cannot be read); all 21 queries still find their item at rank 1, the unreadable one through its note. Extraction keeps titles and article text and drops navigation, footers and scripts. Retry now covers any item with an error, so an unreadable page can be fetched again. jsdom is pinned to 29 because 30 needs Node 24.15. Node's `BlockList` treats IPv4-mapped IPv6 as the IPv4 address, so mapped addresses are checked against the IPv4 ranges rather than blocked as a whole.

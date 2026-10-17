@@ -11,7 +11,7 @@ export function createScreenshotReader(client: AnthropicBedrock, modelId: string
     const prepared = await prepareForModel(image);
     const response = await client.messages.parse({
       model: modelId,
-      max_tokens: 4000,
+      max_tokens: 8000,
       system: instructions,
       messages: [
         {

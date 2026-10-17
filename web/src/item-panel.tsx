@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { deleteItem, getItem, isInProgress, retryItem } from "./api";
-import { describeStatus, formatSavedAt, kindLabels } from "./format";
+import { describeStatus, displayTitle, formatSavedAt, kindLabels } from "./format";
 
 export function ItemPanel({ id, onClose }: { id: string; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -29,9 +29,14 @@ export function ItemPanel({ id, onClose }: { id: string; onClose: () => void }) 
 
   const status = item && describeStatus(item);
   return (
-    <dialog ref={dialog} className="panel" onClose={onClose} aria-label={item?.title ?? "Item"}>
+    <dialog
+      ref={dialog}
+      className="panel"
+      onClose={onClose}
+      aria-label={item ? displayTitle(item) : "Item"}
+    >
       <header className="panel-header">
-        <h2>{item ? item.title || "Untitled" : "Loading…"}</h2>
+        <h2>{item ? displayTitle(item) : "Loading…"}</h2>
         <button type="button" className="quiet" onClick={onClose} aria-label="Close">
           ×
         </button>
@@ -41,7 +46,9 @@ export function ItemPanel({ id, onClose }: { id: string; onClose: () => void }) 
         <>
           <p className="item-meta">
             {kindLabels[item.kind]} · saved {formatSavedAt(item.createdAt)}
-            {status && <span className={`status status-${item.status}`}>{status}</span>}
+            {status && (
+              <span className={`status${item.error ? " status-error" : ""}`}>{status}</span>
+            )}
           </p>
           {item.note && <p className="note">{item.note}</p>}
           {item.error && <p className="error">{item.error}</p>}
@@ -52,7 +59,7 @@ export function ItemPanel({ id, onClose }: { id: string; onClose: () => void }) 
           )}
           {item.body && <div className="body">{item.body}</div>}
           <footer className="panel-actions">
-            {item.status === "failed" && (
+            {item.error && (
               <button type="button" onClick={() => retry.mutate()} disabled={retry.isPending}>
                 Retry
               </button>

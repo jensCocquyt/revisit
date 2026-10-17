@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { type Item, isInProgress, listItems, type SearchResult, searchItems } from "./api";
-import { describeStatus, formatSavedAt, kindLabels } from "./format";
+import { describeStatus, displayTitle, formatSavedAt, hostOf, kindLabels } from "./format";
 import { type Filters, toSearchFilters } from "./search-bar";
 
 type OpenItem = (id: string) => void;
@@ -69,10 +69,12 @@ function ItemRow({
   return (
     <li>
       <button type="button" className="item" onClick={() => onOpen(item.id)}>
-        <span className="item-title">{item.title || "Untitled"}</span>
+        <span className="item-title">{displayTitle(item)}</span>
         <span className="item-meta">
-          {kindLabels[item.kind]} · {formatSavedAt(item.createdAt)}
-          {status && <span className={`status status-${item.status}`}>{status}</span>}
+          {[kindLabels[item.kind], hostOf(item), formatSavedAt(item.createdAt)]
+            .filter(Boolean)
+            .join(" · ")}
+          {status && <span className={`status${item.error ? " status-error" : ""}`}>{status}</span>}
         </span>
         {children}
       </button>

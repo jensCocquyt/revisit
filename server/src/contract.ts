@@ -1,6 +1,6 @@
 // Shapes the web app reads and sends. Keep this file free of imports: the web app type-checks it.
 
-export type ItemKind = "text";
+export type ItemKind = "text" | "link";
 
 export type ItemStatus = "pending" | "processing" | "ready" | "failed";
 
@@ -18,7 +18,9 @@ export type Item = {
 
 export type ItemDetail = Item & { body: string | null };
 
-export type SaveItemRequest = { kind: "text"; text: string; note?: string };
+export type SaveItemRequest =
+  | { kind: "text"; text: string; note?: string }
+  | { kind: "link"; url: string; note?: string };
 
 export type ItemList = { items: Item[] };
 

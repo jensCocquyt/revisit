@@ -8,10 +8,11 @@ import {
   resetInFlightItems,
 } from "../db/items.js";
 import type { Embed } from "../embedding/embed.js";
+import type { ReadLink } from "../links/read-link.js";
 import { describeError, log } from "../log.js";
 import { splitIntoPassages } from "./split-into-passages.js";
 
-export type ProcessingDeps = { pool: pg.Pool; embed: Embed };
+export type ProcessingDeps = { pool: pg.Pool; embed: Embed; readLink: ReadLink };
 
 export type Processor = { wake(): void; stop(): Promise<void> };
 
@@ -48,7 +49,7 @@ export function startProcessor(deps: ProcessingDeps): Processor {
 
 export async function processItem(deps: ProcessingDeps, item: ItemDetail): Promise<void> {
   try {
-    const content = readContent(item);
+    const content = await readContent(deps, item);
     const texts = [headerPassage(item, content), ...splitIntoPassages(content.body ?? "")].filter(
       (text) => text.length > 0,
     );
@@ -71,8 +72,13 @@ export async function processItem(deps: ProcessingDeps, item: ItemDetail): Promi
 
 const idlePollMs = 5000;
 
-function readContent(item: ItemDetail): ReadContent {
-  return { title: item.title, body: item.body, error: null };
+async function readContent(deps: ProcessingDeps, item: ItemDetail): Promise<ReadContent> {
+  switch (item.kind) {
+    case "link":
+      return deps.readLink(item.url ?? "");
+    case "text":
+      return { title: item.title, body: item.body, error: null };
+  }
 }
 
 function headerPassage(item: ItemDetail, content: ReadContent): string {

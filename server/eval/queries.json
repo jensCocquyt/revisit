@@ -14,5 +14,10 @@
   { "query": "cannot find module js extension", "expected": "ts-module" },
   { "query": "gift for my mother", "expected": "mother-gift" },
   { "query": "perfect is the enemy of good", "expected": "voltaire" },
-  { "query": "interval training 400 m", "expected": "running" }
+  { "query": "interval training 400 m", "expected": "running" },
+  { "query": "that piece about burnout in remote teams", "expected": "remote-burnout" },
+  { "query": "bike ride along a canal in Belgium", "expected": "kempen-route" },
+  { "query": "what to do with stale bread", "expected": "pain-perdu" },
+  { "query": "index only some rows in postgres", "expected": "partial-indexes" },
+  { "query": "event sourcing video", "expected": "event-sourcing-talk" }
 ]

@@ -27,6 +27,7 @@ export function SearchBar(props: {
       >
         <option value="">All kinds</option>
         <option value="text">Text</option>
+        <option value="link">Links</option>
       </select>
       <select
         aria-label="Saved"

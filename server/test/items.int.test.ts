@@ -3,6 +3,7 @@ import { createApp } from "../src/app.js";
 import type { Item, ItemDetail, ItemList } from "../src/contract.js";
 import { findItem } from "../src/db/items.js";
 import type { Embed } from "../src/embedding/embed.js";
+import type { ReadLink } from "../src/links/read-link.js";
 import { processItem, startProcessor } from "../src/processing/process-items.js";
 import { fakeEmbed } from "./fake-embed.js";
 import { createTestPool, emptyDatabase } from "./test-database.js";
@@ -10,6 +11,10 @@ import { createTestPool, emptyDatabase } from "./test-database.js";
 const pool = createTestPool();
 const wake = vi.fn();
 const app = createApp({ pool, embed: fakeEmbed, processor: { wake } });
+const unreachableLink: ReadLink = async () => {
+  throw new Error("no link reading in this test");
+};
+const processing = { pool, embed: fakeEmbed, readLink: unreachableLink };
 
 beforeEach(async () => {
   await emptyDatabase(pool);
@@ -83,7 +88,7 @@ describe("reading items", () => {
 describe("processing", () => {
   it("embeds a header passage and the body, then marks the item ready", async () => {
     const saved = (await (await saveText("Leek soup\nWith potatoes.", "winter")).json()) as Item;
-    await processItem({ pool, embed: fakeEmbed }, await requireItem(saved.id));
+    await processItem(processing, await requireItem(saved.id));
 
     expect(await findItem(pool, saved.id)).toMatchObject({ status: "ready", error: null });
     const { rows } = await pool.query(
@@ -98,7 +103,7 @@ describe("processing", () => {
     const failingEmbed: Embed = async () => {
       throw new Error("throttled");
     };
-    await processItem({ pool, embed: failingEmbed }, await requireItem(saved.id));
+    await processItem({ ...processing, embed: failingEmbed }, await requireItem(saved.id));
     expect(await findItem(pool, saved.id)).toMatchObject({ status: "failed", error: "throttled" });
 
     const retry = await app.request(`/api/items/${saved.id}/retry`, { method: "POST" });
@@ -115,7 +120,7 @@ describe("processing", () => {
     const interrupted = (await (await saveText("interrupted")).json()) as Item;
     await pool.query("UPDATE items SET status = 'processing' WHERE id = $1", [interrupted.id]);
 
-    const processor = startProcessor({ pool, embed: fakeEmbed });
+    const processor = startProcessor(processing);
     try {
       await vi.waitFor(
         async () => {
@@ -130,10 +135,84 @@ describe("processing", () => {
   });
 });
 
+describe("links", () => {
+  it("saves the address without tracking parameters and finds it again instead of duplicating", async () => {
+    const first = await saveLink("https://Example.org/post?id=7&utm_source=mail#comments");
+    expect(first.status).toBe(201);
+    const saved = (await first.json()) as Item;
+    expect(saved).toMatchObject({
+      kind: "link",
+      url: "https://example.org/post?id=7",
+      title: null,
+    });
+
+    const again = await saveLink("https://example.org/post?id=7&utm_campaign=x");
+    expect(again.status).toBe(200);
+    expect(((await again.json()) as Item).id).toBe(saved.id);
+  });
+
+  it("keeps one item when the same address is saved twice at once", async () => {
+    const responses = await Promise.all([
+      saveLink("https://example.org/same"),
+      saveLink("https://example.org/same"),
+    ]);
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 201]);
+    const [first, second] = (await Promise.all(responses.map((r) => r.json()))) as Item[];
+    expect(first?.id).toBe(second?.id);
+    const { rows } = await pool.query("SELECT 1 FROM items WHERE url = $1", [
+      "https://example.org/same",
+    ]);
+    expect(rows).toHaveLength(1);
+  });
+
+  it("rejects addresses that are not http or https", async () => {
+    expect((await saveLink("ftp://example.org/file")).status).toBe(400);
+    expect((await saveLink("not a url")).status).toBe(400);
+  });
+
+  it("stores the page title and text when the page can be read", async () => {
+    const saved = (await (await saveLink("https://example.org/soup", "dinner")).json()) as Item;
+    const readLink: ReadLink = async () => ({ title: "Leek soup", body: "Leeks.", error: null });
+    await processItem({ ...processing, readLink }, await requireItem(saved.id));
+
+    expect(await findItem(pool, saved.id)).toMatchObject({
+      status: "ready",
+      title: "Leek soup",
+      body: "Leeks.",
+      error: null,
+    });
+    const { rows } = await pool.query(
+      "SELECT text FROM passages WHERE item_id = $1 ORDER BY position",
+      [saved.id],
+    );
+    expect(rows.map((row) => row.text)).toEqual([
+      "Leek soup\ndinner\nhttps://example.org/soup",
+      "Leeks.",
+    ]);
+  });
+
+  it("keeps an unreadable page findable by address and note, and lets it be retried", async () => {
+    const saved = (await (await saveLink("https://example.org/gone", "dinner")).json()) as Item;
+    const readLink: ReadLink = async () => ({
+      title: null,
+      body: null,
+      error: "the site answered 404",
+    });
+    await processItem({ ...processing, readLink }, await requireItem(saved.id));
+
+    expect(await findItem(pool, saved.id)).toMatchObject({
+      status: "ready",
+      error: "the site answered 404",
+    });
+    const retry = await app.request(`/api/items/${saved.id}/retry`, { method: "POST" });
+    expect(retry.status).toBe(202);
+  });
+});
+
 describe("deleting", () => {
   it("removes the item and its passages", async () => {
     const saved = (await (await saveText("to delete")).json()) as Item;
-    await processItem({ pool, embed: fakeEmbed }, await requireItem(saved.id));
+    await processItem(processing, await requireItem(saved.id));
 
     expect((await app.request(`/api/items/${saved.id}`, { method: "DELETE" })).status).toBe(204);
     expect((await app.request(`/api/items/${saved.id}`)).status).toBe(404);
@@ -150,6 +229,10 @@ async function listIds(filters: Record<string, string>): Promise<string[]> {
 
 function saveText(text: string, note?: string) {
   return post("/api/items", { kind: "text", text, note });
+}
+
+function saveLink(url: string, note?: string) {
+  return post("/api/items", { kind: "link", url, note });
 }
 
 function post(path: string, body: unknown) {

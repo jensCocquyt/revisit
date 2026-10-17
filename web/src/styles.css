@@ -185,7 +185,7 @@ button.danger {
   border: 1px solid var(--border);
 }
 
-.status-failed {
+.status-error {
   color: var(--danger);
   border-color: var(--danger);
 }

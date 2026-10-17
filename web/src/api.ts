@@ -1,0 +1,58 @@
+import type {
+  ErrorResponse,
+  Item,
+  ItemDetail,
+  ItemKind,
+  ItemList,
+  SaveItemRequest,
+  SearchResult,
+  SearchResults,
+} from "../../server/src/contract";
+
+export type { Item, ItemDetail, ItemKind, SearchResult };
+
+export type SearchFilters = { kind?: ItemKind; from?: string };
+
+export async function listItems(): Promise<Item[]> {
+  return (await request<ItemList>("/api/items")).items;
+}
+
+export function getItem(id: string): Promise<ItemDetail> {
+  return request<ItemDetail>(`/api/items/${id}`);
+}
+
+export function saveItem(item: SaveItemRequest): Promise<Item> {
+  return request<Item>("/api/items", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(item),
+  });
+}
+
+export function retryItem(id: string): Promise<Item> {
+  return request<Item>(`/api/items/${id}/retry`, { method: "POST" });
+}
+
+export async function deleteItem(id: string): Promise<void> {
+  await request<void>(`/api/items/${id}`, { method: "DELETE" });
+}
+
+export async function searchItems(q: string, filters: SearchFilters): Promise<SearchResult[]> {
+  const params = new URLSearchParams({ q });
+  if (filters.kind) params.set("kind", filters.kind);
+  if (filters.from) params.set("from", filters.from);
+  return (await request<SearchResults>(`/api/search?${params}`)).results;
+}
+
+export function isInProgress(item: Item): boolean {
+  return item.status === "pending" || item.status === "processing";
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, init);
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as ErrorResponse | null;
+    throw new Error(body?.error ?? `${response.status} ${response.statusText}`);
+  }
+  return (response.status === 204 ? undefined : await response.json()) as T;
+}

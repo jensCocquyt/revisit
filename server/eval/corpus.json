@@ -1,0 +1,129 @@
+[
+  {
+    "key": "postgres-port",
+    "kind": "text",
+    "text": "Docker Postgres not reachable on Windows\nThe compose container was healthy, but connections to localhost:5432 failed with 'password authentication failed for user revisit'. A native Windows postgres service was also listening on 5432 and won the connection. Fix: map the container to 5433."
+  },
+  {
+    "key": "sourdough",
+    "kind": "text",
+    "text": "Zuurdesembrood\n500 g bloem, 350 g water, 100 g actieve starter, 10 g zout. Een nacht laten rijzen in de koelkast en 45 minuten bakken op 240 graden, de eerste 20 minuten met deksel."
+  },
+  {
+    "key": "lisbon",
+    "kind": "text",
+    "text": "Lisbon tips from Marta\nTake tram 28 early in the morning before the crowds. Pastéis de Belém is worth the queue. Go to Miradouro da Senhora do Monte at the end of the day.",
+    "note": "for the spring trip"
+  },
+  {
+    "key": "tax-return",
+    "kind": "text",
+    "text": "Belastingaangifte 2026\nDeadline online aangifte: 30 juni. Niet vergeten: attest kinderopvang en het fiscaal attest van de hypotheek. Inloggen via itsme op MyMinfin."
+  },
+  {
+    "key": "planning-quote",
+    "kind": "text",
+    "text": "\"Weeks of coding can save you hours of planning.\" Overheard at a meetup, still funny."
+  },
+  {
+    "key": "bike-care",
+    "kind": "text",
+    "text": "Entretien du vélo\nGonfler les pneus à 4 bars, lubrifier la chaîne toutes les deux semaines, vérifier l'usure des plaquettes de frein avant l'hiver."
+  },
+  {
+    "key": "git-undo",
+    "kind": "text",
+    "text": "Undo the last commit but keep the changes: git reset --soft HEAD~1. To also unstage them: git reset HEAD~1. Never do this on commits already pushed and shared."
+  },
+  {
+    "key": "books",
+    "kind": "text",
+    "text": "Books to read\nThe Design of Everyday Things (Don Norman), Thinking in Systems (Donella Meadows), A Philosophy of Software Design (John Ousterhout)."
+  },
+  {
+    "key": "doctor",
+    "kind": "text",
+    "text": "Huisarts dokter Peeters\nConsultaties op afspraak, maandag tot vrijdag van 8u30 tot 12u. Wachtdienst in het weekend via 1733."
+  },
+  {
+    "key": "quiche",
+    "kind": "text",
+    "text": "Quiche aux poireaux\nFaire revenir trois poireaux émincés dans du beurre, ajouter trois œufs, 20 cl de crème et du gruyère râpé. Cuire 35 minutes à 180 °C."
+  },
+  {
+    "key": "aws-nat",
+    "kind": "text",
+    "text": "AWS cost trap: a Fargate task in a private subnet needs a NAT gateway, about 35 dollars a month, or VPC endpoints to pull images from ECR and call Bedrock."
+  },
+  {
+    "key": "garden-idea",
+    "kind": "text",
+    "text": "Idee voor de tuin\nRegenton aansluiten op de dakgoot van het tuinhuis en een druppelslang langs de moestuinbakken leggen."
+  },
+  {
+    "key": "meeting",
+    "kind": "text",
+    "text": "Planning meeting 14 October\nAgreed to ship the search slice first, links second, screenshots last. The eval gates each merge."
+  },
+  {
+    "key": "paris-train",
+    "kind": "text",
+    "text": "Train pour Paris\nEurostar depuis Bruxelles-Midi, 1 h 22. Réserver au moins trois semaines à l'avance pour les tarifs les plus bas. Arrivée à la Gare du Nord."
+  },
+  {
+    "key": "ts-module",
+    "kind": "text",
+    "text": "TS2307: Cannot find module './routes/items.js' or its corresponding type declarations. Cause: NodeNext resolution needs the .js extension and the file was named items.mts."
+  },
+  {
+    "key": "mother-gift",
+    "kind": "text",
+    "text": "Cadeau-ideeën voor mama\nEen fotoboek van de reis naar Italië, een workshop keramiek, of nieuwe tuinhandschoenen."
+  },
+  {
+    "key": "running",
+    "kind": "text",
+    "text": "Running plan for the 10K\nThree runs a week: one long slow run on Sunday, adding a kilometre each week, and one interval session of 6 x 400 m."
+  },
+  {
+    "key": "voltaire",
+    "kind": "text",
+    "text": "« Le mieux est l'ennemi du bien. » Voltaire.",
+    "note": "livrer avant de peaufiner"
+  },
+  {
+    "key": "office-wifi",
+    "kind": "text",
+    "text": "Guest wifi at the office: network Atlas-Guest, the password rotates monthly, ask at reception."
+  },
+  {
+    "key": "boiler",
+    "kind": "text",
+    "text": "Onderhoud ketel\nJaarlijks onderhoud is verplicht. Technieker komt op 12 november tussen 8 en 12 uur. Foutcode E133 betekent geen ontsteking: gaskraan controleren."
+  },
+  {
+    "key": "banana-bread",
+    "kind": "text",
+    "text": "Banana bread\n3 ripe bananas, 250 g flour, 1 teaspoon baking soda, 100 g butter, 2 eggs. Bake 55 minutes at 175 °C."
+  },
+  {
+    "key": "porto",
+    "kind": "text",
+    "text": "Porto weekend\nBoottochtje over de Douro, portwijn proeven in Vila Nova de Gaia, boekhandel Lello vooraf reserveren."
+  },
+  {
+    "key": "car-insurance",
+    "kind": "text",
+    "text": "Assurance auto\nÉchéance annuelle le 1er mars. Comparer les offres avant fin janvier, la franchise actuelle est de 500 euros."
+  },
+  {
+    "key": "git-stash",
+    "kind": "text",
+    "text": "Park unfinished work: git stash push -m 'wip'. Bring it back with git stash pop. List what is parked with git stash list."
+  },
+  {
+    "key": "dentist",
+    "kind": "text",
+    "text": "Dentist appointment moved to Thursday 21 November at 9:15. Bring the referral letter."
+  }
+]

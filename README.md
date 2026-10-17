@@ -28,6 +28,28 @@ The bar: something saved weeks ago is found from a vague description in seconds.
 
 Single user. Saving starts from a web page. Content comes in multiple languages.
 
+## Running it
+
+Needs Node 24, Docker, and AWS credentials that can call Bedrock in eu-west-1 (Cohere Embed v4).
+
+```bash
+cp .env.example .env
+docker compose up -d postgres
+cd web && npm ci && npm run build
+cd ../server && npm ci && npm start
+```
+
+Then open http://localhost:3000. For development, run `npm run dev` in both `server/` and `web/` and open the Vite URL; it forwards `/api` to the server.
+
+Checks, from `server/` (tests and eval each wipe their own database, set in `.env`):
+
+```bash
+npm test
+npm run eval
+```
+
+The eval loads a small mixed-language corpus through real Bedrock and reports how many vague queries find their item in the top 5.
+
 ## Roadmap
 
 1. Save and search links, text and screenshots, running locally.

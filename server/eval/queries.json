@@ -1,0 +1,18 @@
+[
+  { "query": "postgres container password error on windows", "expected": "postgres-port" },
+  { "query": "bread recipe with a starter", "expected": "sourdough" },
+  { "query": "nice viewpoint in Portugal", "expected": "lisbon" },
+  { "query": "when is my tax return due", "expected": "tax-return" },
+  { "query": "revert a commit without losing my work", "expected": "git-undo" },
+  { "query": "leek pie", "expected": "quiche" },
+  { "query": "fiets ketting smeren", "expected": "bike-care" },
+  { "query": "doctor opening hours", "expected": "doctor" },
+  { "query": "why is the AWS bill so high", "expected": "aws-nat" },
+  { "query": "collect rainwater", "expected": "garden-idea" },
+  { "query": "train from Brussels to Paris", "expected": "paris-train" },
+  { "query": "E133", "expected": "boiler" },
+  { "query": "cannot find module js extension", "expected": "ts-module" },
+  { "query": "gift for my mother", "expected": "mother-gift" },
+  { "query": "perfect is the enemy of good", "expected": "voltaire" },
+  { "query": "interval training 400 m", "expected": "running" }
+]

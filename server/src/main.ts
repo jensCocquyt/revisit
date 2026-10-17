@@ -30,7 +30,7 @@ const processor = startProcessor({
 const app = createApp({ pool, embed, processor, webDist: config.webDist });
 
 const server = serve(
-  { fetch: app.fetch, port: config.port, hostname: config.host },
+  { fetch: app.fetch, port: config.port, hostname: config.listenHost },
   ({ address, port }) => log("info", "listening", { url: `http://${address}:${port}` }),
 );
 

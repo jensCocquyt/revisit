@@ -2,7 +2,7 @@
 
 Revisit: save links, text and screenshots, then find them again by meaning or exact text. `README.md` holds the idea and roadmap.
 
-Restarted 2026-10-16. Nothing is built yet and the stack is not chosen.
+Restarted 2026-10-16. The stack and the current step's decisions are in `tasks/todo.md`.
 
 ## Flow
 

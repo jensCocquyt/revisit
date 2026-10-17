@@ -9,6 +9,7 @@ import type { Processor } from "./processing/process-items.js";
 import { registerGetHealthRoute } from "./routes/health/get-health.js";
 import { registerDeleteItemRoute } from "./routes/items/delete-item.js";
 import { registerGetItemRoute } from "./routes/items/get-item.js";
+import { registerGetItemImageRoute } from "./routes/items/get-item-image.js";
 import { registerListItemsRoute } from "./routes/items/list-items.js";
 import { registerRetryItemRoute } from "./routes/items/retry-item.js";
 import { registerSaveItemRoute } from "./routes/items/save-item.js";
@@ -28,6 +29,7 @@ export function createApp(deps: AppDeps): Hono {
   registerSaveItemRoute(app, deps);
   registerListItemsRoute(app, deps);
   registerGetItemRoute(app, deps);
+  registerGetItemImageRoute(app, deps);
   registerRetryItemRoute(app, deps);
   registerDeleteItemRoute(app, deps);
   registerSearchRoute(app, deps);

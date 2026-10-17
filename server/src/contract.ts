@@ -1,6 +1,6 @@
 // Shapes the web app reads and sends. Keep this file free of imports: the web app type-checks it.
 
-export type ItemKind = "text" | "link";
+export type ItemKind = "text" | "link" | "screenshot";
 
 export type ItemStatus = "pending" | "processing" | "ready" | "failed";
 

@@ -13,6 +13,8 @@ export type { Item, ItemDetail, ItemKind, SearchResult };
 
 export type SearchFilters = { kind?: ItemKind; from?: string };
 
+export type Capture = SaveItemRequest | { kind: "screenshot"; image: File; note?: string };
+
 export async function listItems(): Promise<Item[]> {
   return (await request<ItemList>("/api/items")).items;
 }
@@ -21,12 +23,22 @@ export function getItem(id: string): Promise<ItemDetail> {
   return request<ItemDetail>(`/api/items/${id}`);
 }
 
-export function saveItem(item: SaveItemRequest): Promise<Item> {
+export function saveItem(capture: Capture): Promise<Item> {
+  if (capture.kind === "screenshot") {
+    const form = new FormData();
+    form.set("image", capture.image);
+    if (capture.note) form.set("note", capture.note);
+    return request<Item>("/api/items", { method: "POST", body: form });
+  }
   return request<Item>("/api/items", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(item),
+    body: JSON.stringify(capture),
   });
+}
+
+export function imageUrl(id: string): string {
+  return `/api/items/${id}/image`;
 }
 
 export function retryItem(id: string): Promise<Item> {

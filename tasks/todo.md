@@ -13,7 +13,7 @@ Deploy and login (step 2), browser extension, "more like this", grouping, tags, 
 - **Stack:** TypeScript only. `server/` (Hono on Node 24) and `web/` (React + Vite), each its own package, no workspaces. In production the server serves the built web app as one container. Biome for lint and format. Plain SQL through `pg`, request validation with Zod, plain SQL migrations applied at startup with postgrator.
 - **Database:** Postgres 18 with pgvector and pg_trgm, in Compose locally.
 - **Embeddings:** Cohere Embed v4 (`cohere.embed-v4:0`) on Bedrock in eu-west-1, 1024 dimensions; passages embedded as `search_document`, queries as `search_query`. Called through `@aws-sdk/client-bedrock-runtime`.
-- **Screenshot reading:** Claude Haiku 5.5 through the `eu.anthropic.claude-haiku-5-5` inference profile, model id from config. Called through the Anthropic Bedrock SDK.
+- **Screenshot reading:** Claude through an `eu.` inference profile, model id from `SCREENSHOT_MODEL_ID`. Haiku 5.5 was the pick, but this AWS account answers "not available for this account" for every 5.5 model, so the default is Haiku 4.5 (`eu.anthropic.claude-haiku-4-5-20251001-v1:0`, about $0.004 per screenshot) until access is granted. Called through the Anthropic Bedrock SDK's `bedrock-runtime` client, because the Mantle endpoint in eu-west-1 does not serve these models.
 - **Credentials:** local AWS profile from the environment; nothing in the repo.
 - **Untrusted input:** page text and screenshot content are data for the model, never instructions.
 
@@ -72,16 +72,17 @@ Each slice is one PR and leaves something usable.
 - [x] Link items in the eval corpus
 
 ### 1c. Screenshots
-- [ ] Upload, storage and image endpoint
-- [ ] Haiku 5.5 reading through the `eu.` profile
-- [ ] Paste or drop in the web app, thumbnails in results
-- [ ] Screenshot items in the eval corpus; eval meets the bar
+- [x] Upload, storage and image endpoint
+- [x] Claude reading through the `eu.` profile
+- [x] Paste or drop in the web app, thumbnails in results
+- [x] Screenshot items in the eval corpus; eval meets the bar
 
 ## Open questions
 
-- Does the Anthropic Bedrock Mantle client accept the `eu.anthropic.claude-haiku-5-5` profile id? If not, use the same SDK's `bedrock-runtime` client, which takes inference profile ids.
+- Access to the Claude 5.5 models on Bedrock for this account (AWS answers "not available for this account"). Once granted, set `SCREENSHOT_MODEL_ID=eu.anthropic.claude-haiku-5-5` and rerun the eval.
 
 ## Review
 
 - **1a:** the eval loads 25 text items (English, Dutch, French, including near-duplicate topics as distractors) and finds all 16 vague queries at rank 1, most of them cross-language through meaning alone. Related passages score above 0.3 cosine similarity and unrelated ones below 0.22, so meaning matches below 0.25 are dropped; a nonsense query returns nothing. The web app talks to the server through types imported from `server/src/contract.ts` rather than Hono's RPC client, which would have pulled the server's whole dependency graph into the web type-check.
 - **1b:** five link items join the eval (four saved pages wrapped in navigation and footer boilerplate, one whose page cannot be read); all 21 queries still find their item at rank 1, the unreadable one through its note. Extraction keeps titles and article text and drops navigation, footers and scripts. Retry now covers any item with an error, so an unreadable page can be fetched again. jsdom is pinned to 29 because 30 needs Node 24.15. Node's `BlockList` treats IPv4-mapped IPv6 as the IPv4 address, so mapped addresses are checked against the IPv4 ranges rather than blocked as a whole.
+- **1c:** five screenshots (a terminal error, a Dutch chat, a French slide, a recipe card, a Dutch departure board) join the eval; all 26 queries find their item at rank 1. Uploads are checked by their bytes, not the declared type. The model returns the visible text exactly, but writes descriptions in English even for Dutch and French screenshots; cross-language search makes that harmless. Tables are read column by column, which loses which values share a row.

@@ -19,5 +19,10 @@
   { "query": "bike ride along a canal in Belgium", "expected": "kempen-route" },
   { "query": "what to do with stale bread", "expected": "pain-perdu" },
   { "query": "index only some rows in postgres", "expected": "partial-indexes" },
-  { "query": "event sourcing video", "expected": "event-sourcing-talk" }
+  { "query": "event sourcing video", "expected": "event-sourcing-talk" },
+  { "query": "npm peer dependency conflict with react", "expected": "npm-eresolve" },
+  { "query": "when do the bins go out", "expected": "bin-days" },
+  { "query": "support response time target", "expected": "support-goals" },
+  { "query": "egg dish baked in tomato sauce", "expected": "shakshuka" },
+  { "query": "which platform for the train to Ghent", "expected": "train-ghent" }
 ]

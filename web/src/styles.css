@@ -260,3 +260,56 @@ mark {
   justify-content: flex-end;
   gap: 8px;
 }
+
+.attached {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  background: var(--surface);
+}
+
+.attached img {
+  max-height: 160px;
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+.file-button {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  background: var(--surface);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.file-button:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.file-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.thumbnail {
+  max-height: 96px;
+  max-width: 100%;
+  align-self: flex-start;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.screenshot {
+  display: block;
+  max-width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}

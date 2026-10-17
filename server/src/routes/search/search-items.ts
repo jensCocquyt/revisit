@@ -15,7 +15,7 @@ export function registerSearchRoute(app: Hono, deps: AppDeps): void {
 
 const searchQuery = z.object({
   q: z.string().trim().min(1).max(500),
-  kind: z.enum(["text", "link"]).optional(),
+  kind: z.enum(["text", "link", "screenshot"]).optional(),
   from: z.iso.datetime({ offset: true }).pipe(z.coerce.date()).optional(),
   to: z.iso.datetime({ offset: true }).pipe(z.coerce.date()).optional(),
 });

@@ -8,7 +8,10 @@ export type NewItem = {
   title: string | null;
   note: string | null;
   body: string | null;
+  image?: StoredImage;
 };
+
+export type StoredImage = { bytes: Buffer; mediaType: string };
 
 export type ReadContent = { title: string | null; body: string | null; error: string | null };
 
@@ -16,9 +19,18 @@ export type EmbeddedPassage = { text: string; embedding: number[] };
 
 export async function insertItem(db: Queryable, item: NewItem): Promise<Item> {
   const { rows } = await db.query<ItemRow>(
-    `INSERT INTO items (kind, url, title, note, body) VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO items (kind, url, title, note, body, image, image_type)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING ${itemColumns()}`,
-    [item.kind, item.url, item.title, item.note, item.body],
+    [
+      item.kind,
+      item.url,
+      item.title,
+      item.note,
+      item.body,
+      item.image?.bytes ?? null,
+      item.image?.mediaType ?? null,
+    ],
   );
   return toItem(onlyRow(rows));
 }
@@ -29,6 +41,15 @@ export async function findLinkItem(db: Queryable, url: string): Promise<Item | u
     [url],
   );
   return rows[0] && toItem(rows[0]);
+}
+
+export async function findItemImage(db: Queryable, id: string): Promise<StoredImage | undefined> {
+  const { rows } = await db.query<{ bytes: Buffer; mediaType: string }>(
+    `SELECT image AS bytes, image_type AS "mediaType" FROM items
+     WHERE id = $1 AND image IS NOT NULL`,
+    [id],
+  );
+  return rows[0];
 }
 
 export async function listRecentItems(db: Queryable, limit: number): Promise<Item[]> {

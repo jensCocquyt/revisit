@@ -30,7 +30,12 @@ beforeAll(async () => {
     const detail = await findItem(pool, item.id);
     if (!detail) throw new Error("item missing");
     await processItem(
-      { pool, embed: fakeEmbed, readLink: async () => ({ title: null, body: null, error: null }) },
+      {
+        pool,
+        embed: fakeEmbed,
+        readLink: async () => ({ title: null, body: null, error: null }),
+        readScreenshot: async () => ({ title: null, body: null, error: null }),
+      },
       detail,
     );
     ids[key] = item.id;

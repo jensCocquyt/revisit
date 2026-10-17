@@ -156,5 +156,31 @@
     "kind": "link",
     "url": "https://talks.example.org/watch/8812",
     "note": "talk on event sourcing pitfalls, watch later"
+  },
+  {
+    "key": "npm-eresolve",
+    "kind": "screenshot",
+    "image": "terminal-npm.jpg"
+  },
+  {
+    "key": "bin-days",
+    "kind": "screenshot",
+    "image": "chat-afval.jpg"
+  },
+  {
+    "key": "support-goals",
+    "kind": "screenshot",
+    "image": "slide-support.jpg",
+    "note": "for the Q4 review"
+  },
+  {
+    "key": "shakshuka",
+    "kind": "screenshot",
+    "image": "recipe-shakshuka.jpg"
+  },
+  {
+    "key": "train-ghent",
+    "kind": "screenshot",
+    "image": "train-board.jpg"
   }
 ]

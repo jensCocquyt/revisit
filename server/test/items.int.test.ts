@@ -1,3 +1,4 @@
+import sharp from "sharp";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.js";
 import type { Item, ItemDetail, ItemList } from "../src/contract.js";
@@ -5,6 +6,7 @@ import { findItem } from "../src/db/items.js";
 import type { Embed } from "../src/embedding/embed.js";
 import type { ReadLink } from "../src/links/read-link.js";
 import { processItem, startProcessor } from "../src/processing/process-items.js";
+import type { ReadScreenshot } from "../src/screenshots/read-screenshot.js";
 import { fakeEmbed } from "./fake-embed.js";
 import { createTestPool, emptyDatabase } from "./test-database.js";
 
@@ -14,7 +16,15 @@ const app = createApp({ pool, embed: fakeEmbed, processor: { wake } });
 const unreachableLink: ReadLink = async () => {
   throw new Error("no link reading in this test");
 };
-const processing = { pool, embed: fakeEmbed, readLink: unreachableLink };
+const unreachableScreenshot: ReadScreenshot = async () => {
+  throw new Error("no screenshot reading in this test");
+};
+const processing = {
+  pool,
+  embed: fakeEmbed,
+  readLink: unreachableLink,
+  readScreenshot: unreachableScreenshot,
+};
 
 beforeEach(async () => {
   await emptyDatabase(pool);
@@ -180,6 +190,51 @@ describe("links", () => {
   });
 });
 
+describe("screenshots", () => {
+  it("stores the image, serves it back, and reads it during processing", async () => {
+    const png = await sharp({
+      create: { width: 4, height: 4, channels: 3, background: "#ff0000" },
+    })
+      .png()
+      .toBuffer();
+    const response = await uploadScreenshot(png, "red square");
+    expect(response.status).toBe(201);
+    const saved = (await response.json()) as Item;
+    expect(saved).toMatchObject({ kind: "screenshot", title: null, note: "red square" });
+
+    const image = await app.request(`/api/items/${saved.id}/image`);
+    expect(image.headers.get("content-type")).toBe("image/png");
+    expect(Buffer.from(await image.arrayBuffer()).equals(png)).toBe(true);
+
+    const readScreenshot: ReadScreenshot = async (stored) => {
+      expect(stored.mediaType).toBe("image/png");
+      return { title: "Red square", body: "A red square.", error: null };
+    };
+    await processItem({ ...processing, readScreenshot }, await requireItem(saved.id));
+    expect(await findItem(pool, saved.id)).toMatchObject({
+      status: "ready",
+      title: "Red square",
+      body: "A red square.",
+    });
+  });
+
+  it("rejects files that are not images, whatever they claim to be", async () => {
+    const response = await uploadScreenshot(Buffer.from("<script>alert(1)</script>"));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "not a PNG, JPEG, WebP or GIF image" });
+  });
+
+  it("rejects uploads over 10 MB", async () => {
+    const response = await uploadScreenshot(Buffer.alloc(11 * 1024 * 1024));
+    expect(response.status).toBe(413);
+  });
+
+  it("answers 404 for an item without an image", async () => {
+    const saved = (await (await saveText("no image")).json()) as Item;
+    expect((await app.request(`/api/items/${saved.id}/image`)).status).toBe(404);
+  });
+});
+
 describe("deleting", () => {
   it("removes the item and its passages", async () => {
     const saved = (await (await saveText("to delete")).json()) as Item;
@@ -199,6 +254,13 @@ function saveText(text: string, note?: string) {
 
 function saveLink(url: string, note?: string) {
   return post("/api/items", { kind: "link", url, note });
+}
+
+function uploadScreenshot(bytes: Buffer, note?: string) {
+  const form = new FormData();
+  form.set("image", new File([new Uint8Array(bytes)], "screenshot.png", { type: "image/png" }));
+  if (note) form.set("note", note);
+  return app.request("/api/items", { method: "POST", body: form });
 }
 
 function post(path: string, body: unknown) {

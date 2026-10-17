@@ -4,15 +4,22 @@ import {
   claimNextPendingItem,
   completeItem,
   failItem,
+  findItemImage,
   type ReadContent,
   resetInFlightItems,
 } from "../db/items.js";
 import type { Embed } from "../embedding/embed.js";
 import type { ReadLink } from "../links/read-link.js";
 import { describeError, log } from "../log.js";
+import type { ReadScreenshot } from "../screenshots/read-screenshot.js";
 import { splitIntoPassages } from "./split-into-passages.js";
 
-export type ProcessingDeps = { pool: pg.Pool; embed: Embed; readLink: ReadLink };
+export type ProcessingDeps = {
+  pool: pg.Pool;
+  embed: Embed;
+  readLink: ReadLink;
+  readScreenshot: ReadScreenshot;
+};
 
 export type Processor = { wake(): void; stop(): Promise<void> };
 
@@ -76,6 +83,11 @@ async function readContent(deps: ProcessingDeps, item: ItemDetail): Promise<Read
   switch (item.kind) {
     case "link":
       return deps.readLink(item.url ?? "");
+    case "screenshot": {
+      const image = await findItemImage(deps.pool, item.id);
+      if (!image) throw new Error("the screenshot image is missing");
+      return deps.readScreenshot(image);
+    }
     case "text":
       return { title: item.title, body: item.body, error: null };
   }

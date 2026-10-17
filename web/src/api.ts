@@ -13,8 +13,8 @@ export type { Item, ItemDetail, ItemKind, SearchResult };
 
 export type SearchFilters = { kind?: ItemKind; from?: string };
 
-export async function listItems(): Promise<Item[]> {
-  return (await request<ItemList>("/api/items")).items;
+export async function listItems(filters: SearchFilters): Promise<Item[]> {
+  return (await request<ItemList>(`/api/items?${filterParams(filters)}`)).items;
 }
 
 export function getItem(id: string): Promise<ItemDetail> {
@@ -38,14 +38,20 @@ export async function deleteItem(id: string): Promise<void> {
 }
 
 export async function searchItems(q: string, filters: SearchFilters): Promise<SearchResult[]> {
-  const params = new URLSearchParams({ q });
-  if (filters.kind) params.set("kind", filters.kind);
-  if (filters.from) params.set("from", filters.from);
+  const params = filterParams(filters);
+  params.set("q", q);
   return (await request<SearchResults>(`/api/search?${params}`)).results;
 }
 
 export function isInProgress(item: Item): boolean {
   return item.status === "pending" || item.status === "processing";
+}
+
+function filterParams(filters: SearchFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  if (filters.kind) params.set("kind", filters.kind);
+  if (filters.from) params.set("from", filters.from);
+  return params;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

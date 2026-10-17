@@ -59,6 +59,21 @@ describe("reading items", () => {
     expect(detail.body).toBe("first");
   });
 
+  it("filters the list by kind and saved date in the database", async () => {
+    const old = (await (await saveText("old note")).json()) as Item;
+    const recent = (await (await saveText("recent note")).json()) as Item;
+    await pool.query("UPDATE items SET created_at = now() - interval '400 days' WHERE id = $1", [
+      old.id,
+    ]);
+    const lastYear = new Date(Date.now() - 365 * 86_400_000).toISOString();
+
+    const sinceLastYear = await listIds({ from: lastYear });
+    expect(sinceLastYear).toEqual([recent.id]);
+    expect(await listIds({ to: lastYear })).toEqual([old.id]);
+    expect(await listIds({ kind: "text" })).toHaveLength(2);
+    expect((await app.request("/api/items?kind=video")).status).toBe(400);
+  });
+
   it("answers 404 for an unknown id and 400 for a malformed one", async () => {
     expect((await app.request(`/api/items/${crypto.randomUUID()}`)).status).toBe(404);
     expect((await app.request("/api/items/not-an-id")).status).toBe(400);
@@ -127,6 +142,11 @@ describe("deleting", () => {
     expect((await app.request(`/api/items/${saved.id}`, { method: "DELETE" })).status).toBe(404);
   });
 });
+
+async function listIds(filters: Record<string, string>): Promise<string[]> {
+  const response = await app.request(`/api/items?${new URLSearchParams(filters)}`);
+  return ((await response.json()) as ItemList).items.map((item) => item.id);
+}
 
 function saveText(text: string, note?: string) {
   return post("/api/items", { kind: "text", text, note });

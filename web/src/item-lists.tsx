@@ -14,25 +14,23 @@ import { type Filters, toSearchFilters } from "./search-bar";
 type OpenItem = (id: string) => void;
 
 export function RecentItems({ filters, onOpen }: { filters: Filters; onOpen: OpenItem }) {
+  const searchFilters = toSearchFilters(filters);
   const { data, error } = useQuery({
-    queryKey: ["items"],
-    queryFn: listItems,
+    queryKey: ["items", searchFilters],
+    queryFn: () => listItems(searchFilters),
     refetchInterval: (query) => (query.state.data?.some(isInProgress) ? 1500 : false),
   });
   if (error) return <p className="error">{error.message}</p>;
   if (!data) return null;
-  const { kind, from } = toSearchFilters(filters);
-  const items = data.filter(
-    (item) => (!kind || item.kind === kind) && (!from || item.createdAt >= from),
-  );
-  if (items.length === 0) {
+  if (data.length === 0) {
+    const filtered = filters.kind !== "" || filters.period !== "any";
     return (
-      <p className="empty">{data.length ? "Nothing saved in this range." : "Nothing saved yet."}</p>
+      <p className="empty">{filtered ? "Nothing saved in this range." : "Nothing saved yet."}</p>
     );
   }
   return (
     <ul className="items" aria-label="Recently saved">
-      {items.map((item) => (
+      {data.map((item) => (
         <ItemRow key={item.id} item={item} onOpen={onOpen}>
           {item.note && <p className="note">{item.note}</p>}
         </ItemRow>

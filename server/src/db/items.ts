@@ -13,6 +13,8 @@ export type NewItem = {
 
 export type StoredImage = { bytes: Buffer; mediaType: string };
 
+export type ItemFilters = { kind?: ItemKind; from?: Date; to?: Date };
+
 export type ReadContent = { title: string | null; body: string | null; error: string | null };
 
 export type EmbeddedPassage = { text: string; embedding: number[] };
@@ -52,10 +54,19 @@ export async function findItemImage(db: Queryable, id: string): Promise<StoredIm
   return rows[0];
 }
 
-export async function listRecentItems(db: Queryable, limit: number): Promise<Item[]> {
+export async function listRecentItems(
+  db: Queryable,
+  filters: ItemFilters,
+  limit: number,
+): Promise<Item[]> {
   const { rows } = await db.query<ItemRow>(
-    `SELECT ${itemColumns()} FROM items ORDER BY created_at DESC, id DESC LIMIT $1`,
-    [limit],
+    `SELECT ${itemColumns()} FROM items
+     WHERE ($1::text IS NULL OR kind = $1)
+       AND ($2::timestamptz IS NULL OR created_at >= $2)
+       AND ($3::timestamptz IS NULL OR created_at < $3)
+     ORDER BY created_at DESC, id DESC
+     LIMIT $4`,
+    [filters.kind ?? null, filters.from ?? null, filters.to ?? null, limit],
   );
   return rows.map(toItem);
 }

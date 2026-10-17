@@ -1,6 +1,6 @@
 import type pg from "pg";
 import type { Item, ItemDetail, ItemKind } from "../contract.js";
-import { onlyRow, type Queryable, withTransaction } from "./connection.js";
+import { type Queryable, withTransaction } from "./connection.js";
 
 export type NewItem = {
   kind: ItemKind;
@@ -19,10 +19,12 @@ export type ReadContent = { title: string | null; body: string | null; error: st
 
 export type EmbeddedPassage = { text: string; embedding: number[] };
 
-export async function insertItem(db: Queryable, item: NewItem): Promise<Item> {
+// Undefined when a link with the same address is already saved.
+export async function insertItem(db: Queryable, item: NewItem): Promise<Item | undefined> {
   const { rows } = await db.query<ItemRow>(
     `INSERT INTO items (kind, url, title, note, body, image, image_type)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (url) DO NOTHING
      RETURNING ${itemColumns()}`,
     [
       item.kind,
@@ -34,7 +36,7 @@ export async function insertItem(db: Queryable, item: NewItem): Promise<Item> {
       item.image?.mediaType ?? null,
     ],
   );
-  return toItem(onlyRow(rows));
+  return rows[0] && toItem(rows[0]);
 }
 
 export async function findLinkItem(db: Queryable, url: string): Promise<Item | undefined> {

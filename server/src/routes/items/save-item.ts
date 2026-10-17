@@ -13,11 +13,12 @@ export function registerSaveItemRoute(app: Hono, deps: AppDeps): void {
     const isUpload = c.req.header("content-type")?.startsWith("multipart/form-data") ?? false;
     const parsed = isUpload ? await screenshotItem(c) : await jsonItem(c);
     if ("error" in parsed) return c.json<ErrorResponse>(parsed, 400);
-    if (parsed.kind === "link" && parsed.url) {
-      const existing = await findLinkItem(deps.pool, parsed.url);
-      if (existing) return c.json<Item>(existing, 200);
-    }
     const item = await insertItem(deps.pool, parsed);
+    if (!item) {
+      const existing = await findLinkItem(deps.pool, parsed.url ?? "");
+      if (!existing) throw new Error("a saved link with this address vanished while saving");
+      return c.json<Item>(existing, 200);
+    }
     deps.processor.wake();
     return c.json<Item>(item, 201);
   });

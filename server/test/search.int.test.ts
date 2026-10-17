@@ -27,6 +27,7 @@ beforeAll(async () => {
       note: null,
       body: text,
     });
+    if (!item) throw new Error("item not inserted");
     const detail = await findItem(pool, item.id);
     if (!detail) throw new Error("item missing");
     await processItem(

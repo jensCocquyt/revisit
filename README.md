@@ -36,7 +36,7 @@ Needs Node 24, Docker, and AWS credentials that can call Bedrock in eu-west-1: C
 cp .env.example .env
 docker compose up -d postgres
 cd web && npm ci && npm run build
-cd ../server && npm ci && npm start
+cd ../server && npm ci && npm run build && npm start
 ```
 
 Then open http://localhost:3000. For development, run `npm run dev` in both `server/` and `web/` and open the Vite URL; it forwards `/api` to the server.

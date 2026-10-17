@@ -29,8 +29,9 @@ const processor = startProcessor({
 });
 const app = createApp({ pool, embed, processor, webDist: config.webDist });
 
-const server = serve({ fetch: app.fetch, port: config.port }, ({ port }) =>
-  log("info", "listening", { url: `http://localhost:${port}` }),
+const server = serve(
+  { fetch: app.fetch, port: config.port, hostname: config.host },
+  ({ address, port }) => log("info", "listening", { url: `http://${address}:${port}` }),
 );
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

@@ -56,15 +56,15 @@ One page: a capture bar (paste a URL or text, paste or drop a screenshot, option
 Each slice is one PR and leaves something usable.
 
 ### 1a. Text, end to end
-- [ ] Scaffold `server/` and `web/`, Biome, Compose with Postgres 18 + pgvector, migrations
-- [ ] Schema: items, passages, indexes
-- [ ] Save, list, get, delete for text items
-- [ ] Processing loop with startup reset and retry
-- [ ] Chunking and Cohere embeddings
-- [ ] Hybrid search with fusion, highlight and filters
-- [ ] Web: capture text, search, results, item view
-- [ ] Eval script and text corpus
-- [ ] CI workflow; README run instructions
+- [x] Scaffold `server/` and `web/`, Biome, Compose with Postgres 18 + pgvector, migrations
+- [x] Schema: items, passages, indexes
+- [x] Save, list, get, delete for text items
+- [x] Processing loop with startup reset and retry
+- [x] Chunking and Cohere embeddings
+- [x] Hybrid search with fusion, highlight and filters
+- [x] Web: capture text, search, results, item view
+- [x] Eval script and text corpus
+- [x] CI workflow; README run instructions
 
 ### 1b. Links
 - [ ] Safe fetch and Readability extraction
@@ -80,3 +80,7 @@ Each slice is one PR and leaves something usable.
 ## Open questions
 
 - Does the Anthropic Bedrock Mantle client accept the `eu.anthropic.claude-haiku-5-5` profile id? If not, use the same SDK's `bedrock-runtime` client, which takes inference profile ids.
+
+## Review
+
+- **1a:** the eval loads 25 text items (English, Dutch, French, including near-duplicate topics as distractors) and finds all 16 vague queries at rank 1, most of them cross-language through meaning alone. Related passages score above 0.3 cosine similarity and unrelated ones below 0.22, so meaning matches below 0.25 are dropped; a nonsense query returns nothing. The web app talks to the server through types imported from `server/src/contract.ts` rather than Hono's RPC client, which would have pulled the server's whole dependency graph into the web type-check.

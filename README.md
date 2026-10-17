@@ -30,9 +30,10 @@ Single user. Saving starts from a web page. Content comes in multiple languages.
 
 ## Roadmap
 
-1. Save and search links, text and screenshots.
-2. "More like this" on any item.
-3. Grouping: related items gathered into piles you can name.
+1. Save and search links, text and screenshots, running locally.
+2. Online, with a single-user login.
+3. "More like this" on any item.
+4. Grouping: related items gathered into piles you can name.
 
 Not planned for now: tags, summaries, deadlines, accounts.
 

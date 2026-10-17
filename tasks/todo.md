@@ -27,7 +27,7 @@ Deploy and login (step 2), browser extension, "more like this", grouping, tags, 
 - Saving inserts the item as `pending` and returns it immediately.
 - One loop in the server process takes the oldest `pending` item, marks it `processing`, does the slow work outside any transaction, then writes passages and `ready` in one transaction. Errors set `failed` with the message; the UI offers retry. On startup, `processing` items go back to `pending`.
 - **Text:** body is the text; first line becomes the title.
-- **Link:** fetch http(s) only, with every address (redirects included) checked against private, loopback and link-local ranges, a 10 s timeout and a 5 MB cap; extract the article with Mozilla Readability. A page that cannot be read still becomes `ready`, searchable by URL, title and note, with the reason in `error`.
+- **Link:** fetch http(s) only, with a 10 s timeout and a 5 MB cap; extract the article with Mozilla Readability. Addresses are checked at connect time, through a custom `lookup` on the HTTP agent that rejects private, loopback and link-local results, so redirects and DNS rebinding cannot slip past a separate earlier lookup. Unit tests cover IPv4-mapped IPv6 (`::ffff:10.0.0.1`) and non-decimal IPv4 forms. A page that cannot be read still becomes `ready`, searchable by URL, title and note, with the reason in `error`.
 - **Screenshot:** PNG, JPEG, WebP or GIF up to 10 MB, stored as is. The server sends a copy downsized to the model's maximum long edge; the model returns title, visible text and a short description as structured output, which become the body.
 - **Passages:** split on paragraph boundaries into chunks of roughly 300 tokens; embedded in batches.
 

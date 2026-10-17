@@ -1,17 +1,15 @@
 import type pg from "pg";
-import type { ItemKind, MatchMethod, SearchResult, SnippetPart } from "../contract.js";
-import { type ItemRow, itemColumns, toItem } from "../db/items.js";
+import type { MatchMethod, SearchResult, SnippetPart } from "../contract.js";
+import { type ItemFilters, type ItemRow, itemColumns, toItem } from "../db/items.js";
 import type { Embed } from "../embedding/embed.js";
 import { type PassageHit, type RankedList, rankItems } from "./rank-items.js";
-
-export type SearchFilters = { kind?: ItemKind; from?: Date; to?: Date };
 
 export type SearchDeps = { pool: pg.Pool; embed: Embed };
 
 export async function searchItems(
   deps: SearchDeps,
   query: string,
-  filters: SearchFilters,
+  filters: ItemFilters,
 ): Promise<SearchResult[]> {
   const [vector] = await deps.embed([query], "query");
   if (!vector) throw new Error("query embedding missing");

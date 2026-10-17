@@ -1,6 +1,13 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { type Item, isInProgress, listItems, type SearchResult, searchItems } from "./api";
+import {
+  type Item,
+  imageUrl,
+  isInProgress,
+  listItems,
+  type SearchResult,
+  searchItems,
+} from "./api";
 import { describeStatus, displayTitle, formatSavedAt, hostOf, kindLabels } from "./format";
 import { type Filters, toSearchFilters } from "./search-bar";
 
@@ -70,6 +77,9 @@ function ItemRow({
     <li>
       <button type="button" className="item" onClick={() => onOpen(item.id)}>
         <span className="item-title">{displayTitle(item)}</span>
+        {item.kind === "screenshot" && (
+          <img className="thumbnail" src={imageUrl(item.id)} alt="" loading="lazy" />
+        )}
         <span className="item-meta">
           {[kindLabels[item.kind], hostOf(item), formatSavedAt(item.createdAt)]
             .filter(Boolean)

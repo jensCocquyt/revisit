@@ -10,14 +10,19 @@ const configSchema = z
   .object({
     DATABASE_URL: z.string().min(1),
     PORT: z.coerce.number().int().positive().default(3000),
+    // Localhost only until there is a login.
+    LISTEN_HOST: z.string().min(1).default("127.0.0.1"),
     AWS_REGION: z.string().min(1).default("eu-west-1"),
     EMBEDDING_MODEL_ID: z.string().min(1).default("cohere.embed-v4:0"),
+    SCREENSHOT_MODEL_ID: z.string().min(1).default("eu.anthropic.claude-haiku-4-5-20251001-v1:0"),
     WEB_DIST: z.string().min(1).default("../web/dist"),
   })
   .transform((env) => ({
     databaseUrl: env.DATABASE_URL,
     port: env.PORT,
+    listenHost: env.LISTEN_HOST,
     awsRegion: env.AWS_REGION,
     embeddingModelId: env.EMBEDDING_MODEL_ID,
+    screenshotModelId: env.SCREENSHOT_MODEL_ID,
     webDist: env.WEB_DIST,
   }));

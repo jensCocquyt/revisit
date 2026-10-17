@@ -19,6 +19,10 @@ export function hostOf(item: Item): string | null {
   return item.url ? new URL(item.url).hostname : null;
 }
 
-export const kindLabels: Record<ItemKind, string> = { text: "Text", link: "Link" };
+export const kindLabels: Record<ItemKind, string> = {
+  text: "Text",
+  link: "Link",
+  screenshot: "Screenshot",
+};
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });

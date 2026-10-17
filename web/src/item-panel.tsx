@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
-import { deleteItem, getItem, isInProgress, retryItem } from "./api";
+import { deleteItem, getItem, imageUrl, isInProgress, retryItem } from "./api";
 import { describeStatus, displayTitle, formatSavedAt, kindLabels } from "./format";
 
 export function ItemPanel({ id, onClose }: { id: string; onClose: () => void }) {
@@ -56,6 +56,9 @@ export function ItemPanel({ id, onClose }: { id: string; onClose: () => void }) 
             <a className="source" href={item.url} target="_blank" rel="noreferrer">
               {item.url}
             </a>
+          )}
+          {item.kind === "screenshot" && (
+            <img className="screenshot" src={imageUrl(item.id)} alt={displayTitle(item)} />
           )}
           {item.body && <div className="body">{item.body}</div>}
           <footer className="panel-actions">

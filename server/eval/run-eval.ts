@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { AnthropicBedrock } from "@anthropic-ai/bedrock-sdk";
 import { BedrockRuntimeClient } from "@aws-sdk/client-bedrock-runtime";
 import pg from "pg";
 import { z } from "zod";
@@ -12,6 +13,7 @@ import type { FetchPage } from "../src/links/fetch-page.js";
 import { normalizeLinkUrl } from "../src/links/normalize-url.js";
 import { readLink } from "../src/links/read-link.js";
 import { processItem } from "../src/processing/process-items.js";
+import { createScreenshotReader } from "../src/screenshots/read-screenshot.js";
 
 const hitDepth = 5;
 const requiredHitRate = 0.9;
@@ -41,6 +43,7 @@ const corpus = z
         page: z.string().optional(),
         note,
       }),
+      z.object({ key: z.string(), kind: z.literal("screenshot"), image: z.string(), note }),
     ]),
   )
   .parse(await readJson("corpus.json"));
@@ -60,18 +63,20 @@ const fetchSavedPage: FetchPage = async (url) => {
   const body = await readFile(new URL(`pages/${page}`, import.meta.url));
   return { url, contentType: "text/html; charset=utf-8", body };
 };
-const processing = { pool, embed, readLink: (url: string) => readLink(url, fetchSavedPage) };
+const processing = {
+  pool,
+  embed,
+  readLink: (url: string) => readLink(url, fetchSavedPage),
+  readScreenshot: createScreenshotReader(
+    new AnthropicBedrock({ awsRegion: config.awsRegion }),
+    config.screenshotModelId,
+  ),
+};
 
 const keyByItemId = new Map<string, string>();
 for (const entry of corpus) {
-  const { key, ...saved } = entry;
-  const body =
-    saved.kind === "link" ? { kind: saved.kind, url: saved.url, note: saved.note } : saved;
-  const response = await app.request("/api/items", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const { key } = entry;
+  const response = await app.request("/api/items", await saveRequest(entry));
   if (response.status !== 201) throw new Error(`saving ${key} failed: ${await response.text()}`);
   const item = (await response.json()) as Item;
   const pending = await findItem(pool, item.id);
@@ -104,6 +109,25 @@ console.log(
 );
 process.exitCode = hits >= requiredHits ? 0 : 1;
 await pool.end();
+
+async function saveRequest(entry: (typeof corpus)[number]): Promise<RequestInit> {
+  if (entry.kind === "screenshot") {
+    const bytes = await readFile(new URL(`screenshots/${entry.image}`, import.meta.url));
+    const form = new FormData();
+    form.set("image", new File([new Uint8Array(bytes)], entry.image));
+    if (entry.note) form.set("note", entry.note);
+    return { method: "POST", body: form };
+  }
+  const body =
+    entry.kind === "link"
+      ? { kind: entry.kind, url: entry.url, note: entry.note }
+      : { kind: entry.kind, text: entry.text, note: entry.note };
+  return {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  };
+}
 
 async function readJson(file: string): Promise<unknown> {
   return JSON.parse(await readFile(new URL(file, import.meta.url), "utf8"));

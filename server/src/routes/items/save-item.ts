@@ -14,13 +14,16 @@ export function registerSaveItemRoute(app: Hono, deps: AppDeps): void {
     if (body.kind === "link") {
       const url = normalizeLinkUrl(body.url);
       if (!url) return c.json<ErrorResponse>({ error: "not an http or https address" }, 400);
-      const existing = await findLinkItem(deps.pool, url);
-      if (existing) return c.json<Item>(existing, 200);
       newItem = { kind: "link", url, title: null, note, body: null };
     } else {
       newItem = { kind: "text", url: null, title: titleFromText(body.text), note, body: body.text };
     }
     const item = await insertItem(deps.pool, newItem);
+    if (!item) {
+      const existing = await findLinkItem(deps.pool, newItem.url ?? "");
+      if (!existing) throw new Error("a saved link with this address vanished while saving");
+      return c.json<Item>(existing, 200);
+    }
     deps.processor.wake();
     return c.json<Item>(item, 201);
   });

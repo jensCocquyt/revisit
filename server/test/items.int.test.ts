@@ -151,6 +151,20 @@ describe("links", () => {
     expect(((await again.json()) as Item).id).toBe(saved.id);
   });
 
+  it("keeps one item when the same address is saved twice at once", async () => {
+    const responses = await Promise.all([
+      saveLink("https://example.org/same"),
+      saveLink("https://example.org/same"),
+    ]);
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 201]);
+    const [first, second] = (await Promise.all(responses.map((r) => r.json()))) as Item[];
+    expect(first?.id).toBe(second?.id);
+    const { rows } = await pool.query("SELECT 1 FROM items WHERE url = $1", [
+      "https://example.org/same",
+    ]);
+    expect(rows).toHaveLength(1);
+  });
+
   it("rejects addresses that are not http or https", async () => {
     expect((await saveLink("ftp://example.org/file")).status).toBe(400);
     expect((await saveLink("not a url")).status).toBe(400);

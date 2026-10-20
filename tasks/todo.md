@@ -2,7 +2,7 @@
 
 ## Goal
 
-Replace the step 1 interface with the approved design: a blue add rail on the left, search with dense results on the right, and the item view as a 600px panel on the right that Esc closes. On a phone, a blue Add band pinned at the bottom opens an add sheet, and the item view is full screen. Web only: the server, the API and the eval stay as they are.
+Replace the step 1 interface with the approved design: a blue add rail on the left, search with dense results on the right, and the item view as a 600px panel on the right that Esc or a click outside closes. On a phone, a blue Add band pinned at the bottom opens an add sheet, and the item view is full screen. Web only: the server, the API and the eval stay as they are.
 
 ## Out of scope
 

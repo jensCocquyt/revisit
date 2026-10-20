@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { deleteItem, type ItemDetail, imageUrl, retryItem } from "./api";
 import { asSentence, displayTitle, formatSavedAt, isTitledByUrl } from "./format";
 import { BackIcon, CloseIcon } from "./icons";
@@ -15,6 +15,7 @@ export function ItemPanel(props: {
 }) {
   const { id, layout } = props;
   const dialog = useRef<HTMLDialogElement>(null);
+  const pressedOutside = useRef(false);
   const { data: item, error } = useQuery(itemQuery(id));
 
   useEffect(() => {
@@ -23,10 +24,17 @@ export function ItemPanel(props: {
 
   const close = () => dialog.current?.close();
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: Esc already closes the dialog; the click only adds closing from the backdrop.
     <dialog
       ref={dialog}
       className="panel"
       onClose={props.onClose}
+      onPointerDown={(event) => {
+        pressedOutside.current = isOutside(event);
+      }}
+      onClick={(event) => {
+        if (pressedOutside.current && isOutside(event)) close();
+      }}
       aria-label={item ? displayTitle(item) : "Item"}
     >
       <div className="panel-inner">
@@ -67,6 +75,18 @@ export function ItemPanel(props: {
         )}
       </div>
     </dialog>
+  );
+}
+
+// A click on the backdrop targets the dialog itself, outside its box.
+function isOutside(event: MouseEvent<HTMLDialogElement>): boolean {
+  const box = event.currentTarget.getBoundingClientRect();
+  return (
+    event.target === event.currentTarget &&
+    (event.clientX < box.left ||
+      event.clientX > box.right ||
+      event.clientY < box.top ||
+      event.clientY > box.bottom)
   );
 }
 

@@ -1,11 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { AnthropicBedrock } from "@anthropic-ai/bedrock-sdk";
 import { BedrockRuntimeClient } from "@aws-sdk/client-bedrock-runtime";
-import pg from "pg";
 import { z } from "zod";
 import { createApp } from "../src/app.js";
 import { readConfig } from "../src/config.js";
 import type { Item, SearchResults } from "../src/contract.js";
+import { createPool } from "../src/db/connection.js";
 import { findItem } from "../src/db/items.js";
 import { migrate } from "../src/db/migrate.js";
 import { createCohereEmbed } from "../src/embedding/cohere-on-bedrock.js";
@@ -23,7 +23,7 @@ if (!databaseUrl) throw new Error("EVAL_DATABASE_URL is not set; see .env.exampl
 const config = readConfig({ ...process.env, DATABASE_URL: databaseUrl });
 
 await migrate(config.databaseUrl);
-const pool = new pg.Pool({ connectionString: config.databaseUrl });
+const pool = createPool(config.databaseUrl);
 await pool.query("TRUNCATE items CASCADE");
 const embed = createCohereEmbed(
   new BedrockRuntimeClient({ region: config.awsRegion }),

@@ -1,9 +1,9 @@
 import { AnthropicBedrock } from "@anthropic-ai/bedrock-sdk";
 import { BedrockRuntimeClient } from "@aws-sdk/client-bedrock-runtime";
 import { serve } from "@hono/node-server";
-import pg from "pg";
 import { createApp } from "./app.js";
 import { readConfig } from "./config.js";
+import { createPool } from "./db/connection.js";
 import { migrate } from "./db/migrate.js";
 import { createCohereEmbed } from "./embedding/cohere-on-bedrock.js";
 import { readLink } from "./links/read-link.js";
@@ -14,7 +14,7 @@ import { createScreenshotReader } from "./screenshots/read-screenshot.js";
 const config = readConfig();
 await migrate(config.databaseUrl);
 
-const pool = new pg.Pool({ connectionString: config.databaseUrl });
+const pool = createPool(config.databaseUrl);
 const bedrock = new BedrockRuntimeClient({ region: config.awsRegion });
 const embed = createCohereEmbed(bedrock, config.embeddingModelId);
 const readScreenshot = createScreenshotReader(

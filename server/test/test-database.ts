@@ -1,4 +1,5 @@
-import pg from "pg";
+import type pg from "pg";
+import { createPool } from "../src/db/connection.js";
 
 export function testDatabaseUrl(): string {
   const url = process.env.TEST_DATABASE_URL;
@@ -7,7 +8,7 @@ export function testDatabaseUrl(): string {
 }
 
 export function createTestPool(): pg.Pool {
-  return new pg.Pool({ connectionString: testDatabaseUrl() });
+  return createPool(testDatabaseUrl());
 }
 
 export async function emptyDatabase(pool: pg.Pool): Promise<void> {

@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
 import { AddForm, type Draft, emptyDraft } from "./add-form";
-import { AddSheet, SavedToast } from "./add-sheet";
+import { AddSheet } from "./add-sheet";
 import type { SavedItem } from "./api";
 import { ListingView, listLabel, useListing } from "./item-lists";
 import { ItemPanel } from "./item-panel";
 import { JustAdded } from "./just-added";
+import { SavedToast } from "./saved-toast";
 import { type Filters, noFilters, SearchBar } from "./search-bar";
 import { useSlashToFocus } from "./shortcuts";
 import { useDebounced } from "./use-debounced";
@@ -29,10 +30,8 @@ export function App() {
   function saved(result: SavedItem) {
     const { id } = result.item;
     setJustAdded((ids) => [id, ...ids.filter((other) => other !== id)].slice(0, 3));
-    if (onPhone) {
-      setSheetOpen(false);
-      setToast(result);
-    }
+    if (onPhone) setSheetOpen(false);
+    if (layout !== "wide") setToast(result);
   }
 
   function forget(id: string) {
@@ -77,19 +76,17 @@ export function App() {
         />
       </main>
       {onPhone && (
-        <>
-          {toast && (
-            <SavedToast
-              key={toast.item.id}
-              saved={toast}
-              onDone={() => setToast(null)}
-              onUndone={forget}
-            />
-          )}
-          <AddSheet open={sheetOpen} onOpenChange={setSheetOpen}>
-            {form}
-          </AddSheet>
-        </>
+        <AddSheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          {form}
+        </AddSheet>
+      )}
+      {layout !== "wide" && toast && (
+        <SavedToast
+          key={toast.item.id}
+          saved={toast}
+          onDone={() => setToast(null)}
+          onUndone={forget}
+        />
       )}
       {openItemId && (
         <ItemPanel

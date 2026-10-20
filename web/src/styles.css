@@ -1205,8 +1205,10 @@ mark {
 .toast {
   position: fixed;
   right: var(--space-4);
-  bottom: calc(104px + env(safe-area-inset-bottom));
+  bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
   left: var(--space-4);
+  max-width: 480px;
+  margin-inline: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1234,6 +1236,7 @@ mark {
 @media (width < 900px) {
   .app {
     grid-template-columns: minmax(0, 1fr);
+    align-content: start;
   }
 
   .rail {
@@ -1478,6 +1481,11 @@ mark {
 
   .main > .listing-error {
     padding: var(--space-4);
+  }
+
+  .toast {
+    bottom: calc(104px + env(safe-area-inset-bottom));
+    max-width: none;
   }
 
   .panel {

@@ -12,7 +12,7 @@ Replace the step 1 interface with the approved design: a blue add rail on the le
 
 - **Colour:** Klein blue is provisional. All colour comes from four brand tokens (`--brand`, `--brand-contrast`, `--highlight`, `--highlight-contrast`) in `web/src/tokens.css`. Components read only semantic tokens, never a raw colour.
 - **Stack:** React with plain CSS custom properties, native `<dialog>` and `<search>`, no component library. Schibsted Grotesk and DM Mono are bundled through Fontsource, so the page makes no requests to Google Fonts.
-- **Layout:** 900px and wider: add rail on the left, item panel on the right. 600 to 900px: the rail becomes an add bar above search. Under 600px: Add band at the bottom, add opens a bottom sheet, the item view is full screen with "← Results". The draft lives in the app, so it survives closing the sheet or crossing a breakpoint.
+- **Layout:** 900px and wider: add rail on the left, item panel on the right. 600 to 900px: the rail becomes an add bar above search. Under 600px: Add band at the bottom, add opens a bottom sheet, the item view is full screen with "← Results". The draft lives in the app, so it survives closing the sheet or crossing a breakpoint. Where the just-added list is not shown, a short message confirms each save.
 - **Status labels:** "Reading…" while processing, "Failed" with Retry, "Page not read" with Retry.
 - **Why it matched:** the design drops the "exact words / partial text / similar meaning" line; highlighted words in the snippet show exact matches.
 - **Shortcuts:** `/` focuses search, Ctrl (⌘ on a Mac) + Enter saves, pasting outside a field fills the add box.

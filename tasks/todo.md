@@ -1,88 +1,41 @@
-# Step 1: save and search
+# Redesign
 
 ## Goal
 
-Save links, text and screenshots from a web page, then find them again by meaning or by exact text, in any language. Runs on your laptop (Docker Compose). Done when the eval meets its bar and it is usable day to day locally.
+Replace the step 1 interface with the approved design: a blue add rail on the left, search with dense results on the right, and the item view as a 600px panel on the right that Esc or a click outside closes. On a phone, a blue Add band pinned at the bottom opens an add sheet, and the item view is full screen. Web only: the server, the API and the eval stay as they are.
 
 ## Out of scope
 
-Deploy and login (step 2), browser extension, "more like this", grouping, tags, summaries, deadlines, multiple users, object storage, a vector index, re-fetching pages that changed, PDFs.
+"Show more" (search and the recent list have no paging), the reserved "more like this" slot, a theme switch, showing a screenshot's text apart from its description (the server stores them as one body), and any server change.
 
 ## Decisions
 
-- **Stack:** TypeScript only. `server/` (Hono on Node 24) and `web/` (React + Vite), each its own package, no workspaces. In production the server serves the built web app as one container. Biome for lint and format. Plain SQL through `pg`, request validation with Zod, plain SQL migrations applied at startup with postgrator.
-- **Database:** Postgres 18 with pgvector and pg_trgm, in Compose locally.
-- **Embeddings:** Cohere Embed v4 (`cohere.embed-v4:0`) on Bedrock in eu-west-1, 1024 dimensions; passages embedded as `search_document`, queries as `search_query`. Called through `@aws-sdk/client-bedrock-runtime`.
-- **Screenshot reading:** Claude through an `eu.` inference profile, model id from `SCREENSHOT_MODEL_ID`. Haiku 5.5 was the pick, but this AWS account answers "not available for this account" for every 5.5 model, so the default is Haiku 4.5 (`eu.anthropic.claude-haiku-4-5-20251001-v1:0`, about $0.004 per screenshot) until access is granted. Called through the Anthropic Bedrock SDK's `bedrock-runtime` client, because the Mantle endpoint in eu-west-1 does not serve these models.
-- **Credentials:** local AWS profile from the environment; nothing in the repo.
-- **Untrusted input:** page text and screenshot content are data for the model, never instructions.
+- **Colour:** Klein blue is provisional. All colour comes from four brand tokens (`--brand`, `--brand-contrast`, `--highlight`, `--highlight-contrast`) in `web/src/tokens.css`. Components read only semantic tokens, never a raw colour.
+- **Stack:** React with plain CSS custom properties, native `<dialog>` and `<search>`, no component library. Schibsted Grotesk and DM Mono are bundled through Fontsource, so the page makes no requests to Google Fonts.
+- **Layout:** 900px and wider: add rail on the left, item panel on the right. 600 to 900px: the rail becomes an add bar above search. Under 600px: Add band at the bottom, add opens a bottom sheet, the item view is full screen with "← Results". The draft lives in the app, so it survives closing the sheet or crossing a breakpoint. Where the just-added list is not shown, a short message confirms each save.
+- **Status labels:** "Reading…" while processing, "Failed" with Retry, "Page not read" with Retry.
+- **Why it matched:** the design drops the "exact words / partial text / similar meaning" line; highlighted words in the snippet show exact matches.
+- **Shortcuts:** `/` focuses search, Ctrl (⌘ on a Mac) + Enter saves, pasting outside a field fills the add box.
 
-## Data
+## Checklist
 
-- `items`: id, kind (`link` | `text` | `screenshot`), url, title, note, body, image bytes + media type, status (`pending` | `processing` | `ready` | `failed`), error, created_at, processed_at. Saving a link that already exists (fragment and `utm_*` stripped) returns the existing item.
-- `passages`: item_id, position, text, generated `simple` tsvector, embedding `vector(1024)`. Passage 0 is title + note + URL, so those are searchable for every item. GIN indexes on the tsvector and on trigrams of the text; no vector index until search is measurably slow.
-
-## Processing
-
-- Saving inserts the item as `pending` and returns it immediately.
-- One loop in the server process takes the oldest `pending` item, marks it `processing`, does the slow work outside any transaction, then writes passages and `ready` in one transaction. Errors set `failed` with the message; the UI offers retry. On startup, `processing` items go back to `pending`.
-- **Text:** body is the text; first line becomes the title.
-- **Link:** fetch http(s) only, with a 10 s timeout and a 5 MB cap; extract the article with Mozilla Readability. Addresses are checked at connect time, through a custom `lookup` on the HTTP agent that rejects private, loopback and link-local results, so redirects and DNS rebinding cannot slip past a separate earlier lookup. Unit tests cover IPv4-mapped IPv6 (`::ffff:10.0.0.1`) and non-decimal IPv4 forms. A page that cannot be read still becomes `ready`, searchable by URL, title and note, with the reason in `error`.
-- **Screenshot:** PNG, JPEG, WebP or GIF up to 10 MB, stored as is. The server sends a copy downsized to the model's maximum long edge; the model returns title, visible text and a short description as structured output, which become the body.
-- **Passages:** split on paragraph boundaries into chunks of roughly 300 tokens; embedded in batches.
-
-## Search
-
-- `GET /api/search?q=&kind=&from=&to=` runs three candidate lists over passages, 50 each: vector similarity, full text (`websearch_to_tsquery('simple', q)`), and trigram word similarity for fragments such as parts of error codes or URLs.
-- Reciprocal rank fusion merges the lists, results are grouped per item by best passage, top 20 returned with a highlighted snippet and which kinds of match hit.
-- Empty query lists recent items.
-
-## API
-
-All under `/api`: `GET /health`, `POST /items` (JSON for link and text, multipart for screenshot), `GET /items`, `GET /items/:id`, `GET /items/:id/image`, `POST /items/:id/retry`, `DELETE /items/:id`, `GET /search`.
-
-## Web
-
-One page: a capture bar (paste a URL or text, paste or drop a screenshot, optional note), a search box with kind and date filters, results with thumbnail or snippet and highlight, recent items when the search is empty, and an item view with full text, original link, status and retry. Pending items refresh until ready.
-
-## Proof
-
-- Integration tests against real Postgres; the Bedrock calls are passed in as functions and faked deterministically in tests. Unit tests for chunking, the address checks, and rank fusion.
-- Eval: a fixture corpus of about 30 items mixing English, Dutch and French (some screenshots), and about 20 vague queries, each with its expected item. A script loads the corpus into a scratch database with real Bedrock and reports hits in the top 5 and mean reciprocal rank. Bar: at least 18 of 20 queries find their item in the top 5. Runs on demand, not in CI. Your personal query list stays out of the repo.
-- CI: lint, typecheck and tests for both packages, Postgres as a service container. After the first green run, add its jobs as required checks on the `Main` ruleset.
-
-## Slices
-
-Each slice is one PR and leaves something usable.
-
-### 1a. Text, end to end
-- [x] Scaffold `server/` and `web/`, Biome, Compose with Postgres 18 + pgvector, migrations
-- [x] Schema: items, passages, indexes
-- [x] Save, list, get, delete for text items
-- [x] Processing loop with startup reset and retry
-- [x] Chunking and Cohere embeddings
-- [x] Hybrid search with fusion, highlight and filters
-- [x] Web: capture text, search, results, item view
-- [x] Eval script and text corpus
-- [x] CI workflow; README run instructions
-
-### 1b. Links
-- [x] Safe fetch and Readability extraction
-- [x] Link capture and unreadable-page handling in the web app
-- [x] Link items in the eval corpus
-
-### 1c. Screenshots
-- [x] Upload, storage and image endpoint
-- [x] Claude reading through the `eu.` profile
-- [x] Paste or drop in the web app, thumbnails in results
-- [x] Screenshot items in the eval corpus; eval meets the bar
+- [x] Tokens and fonts
+- [x] Add rail: paste, drop or Upload file, optional note, Save, save errors, just added
+- [x] Search box, kind chips, time filter
+- [x] Results and recent rows with thumbnails, highlights and status labels
+- [x] States: searching, no matches, nothing in the filtered range, nothing saved yet
+- [x] Item panel: link, text, screenshot, failed, inline delete confirm
+- [x] 600 to 900px add bar
+- [x] Phone: Add band, add sheet with Paste and Upload file, saved toast with Undo, full-screen item view
+- [x] Light and dark, checked at 1280, 800 and 375px wide
 
 ## Open questions
 
+- Should the "why it matched" line come back somewhere in the row?
 - Access to the Claude 5.5 models on Bedrock for this account (AWS answers "not available for this account"). Once granted, set `SCREENSHOT_MODEL_ID=eu.anthropic.claude-haiku-5-5` and rerun the eval.
 
 ## Review
 
-- **1a:** the eval loads 25 text items (English, Dutch, French, including near-duplicate topics as distractors) and finds all 16 vague queries at rank 1, most of them cross-language through meaning alone. Related passages score above 0.3 cosine similarity and unrelated ones below 0.22, so meaning matches below 0.25 are dropped; a nonsense query returns nothing. The web app talks to the server through types imported from `server/src/contract.ts` rather than Hono's RPC client, which would have pulled the server's whole dependency graph into the web type-check.
-- **1b:** five link items join the eval (four saved pages wrapped in navigation and footer boilerplate, one whose page cannot be read); all 21 queries still find their item at rank 1, the unreadable one through its note. Extraction keeps titles and article text and drops navigation, footers and scripts. Retry now covers any item with an error, so an unreadable page can be fetched again. jsdom is pinned to 29 because 30 needs Node 24.15. Node's `BlockList` treats IPv4-mapped IPv6 as the IPv4 address, so mapped addresses are checked against the IPv4 ranges rather than blocked as a whole.
-- **1c:** five screenshots (a terminal error, a Dutch chat, a French slide, a recipe card, a Dutch departure board) join the eval; all 26 queries find their item at rank 1. Uploads are checked by their bytes, not the declared type. The model returns the visible text exactly, but writes descriptions in English even for Dutch and French screenshots; cross-language search makes that harmless. Tables are read column by column, which loses which values share a row.
+- Checked against a scratch database in light and dark at 1280, 800 and 375px: recent with Reading…, Failed and Page not read, search with highlights, no matches, nothing in the past week, nothing saved yet, save error, page-wide paste, Ctrl + Enter, just added, item panel for link, screenshot and failed items, inline delete, add sheet, Upload file in the rail and the sheet, saved toast and Undo.
+- Saving a link that is already saved shows "Already saved." without Undo, so Undo never deletes an older item.
+- Not exercised by hand: the phone Paste button, which needs clipboard permission.

@@ -1,0 +1,106 @@
+/* A new colour scheme changes only the brand layer; recheck --rail-muted on --rail and dark --accent on --bg after a swap. */
+:root {
+  --brand: #1a2cff;
+  --brand-contrast: #ffffff;
+  --highlight: #ffe600;
+  --highlight-contrast: #0a0a0a;
+
+  --font-sans: "Schibsted Grotesk Variable", system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, monospace;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14.5px;
+  --text-lg: 16px;
+  --text-xl: 22px;
+  --text-2xl: 30px;
+  --text-3xl: 34px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius: 12px;
+  --radius-sm: 6px;
+  --radius-xs: 4px;
+  --radius-pill: 999px;
+  --rail-w: 320px;
+  --drawer-w: 600px;
+
+  --bg: #ffffff;
+  --panel: var(--bg);
+  --surface: #f4f4f6;
+  --text: #0a0a0a;
+  --text-body: #262626;
+  --muted: #555555;
+  --border: #e4e4e7;
+  --border-strong: #0a0a0a;
+  --chip: #f1f1f4;
+  --skeleton: #ececef;
+  --inverse: var(--text);
+  --inverse-text: var(--bg);
+  --overlay: rgb(10 10 10 / 0.16);
+  --overlay-strong: rgb(0 0 0 / 0.45);
+  --shadow: rgb(0 0 0 / 0.12);
+
+  --accent: var(--brand);
+  --accent-text: var(--brand-contrast);
+  --link: var(--brand);
+  --focus: var(--brand);
+  --focus-halo: color-mix(in srgb, var(--focus) 15%, transparent);
+  --selected: color-mix(in srgb, var(--brand) 8%, var(--bg));
+
+  --mark: var(--highlight);
+  --mark-text: var(--highlight-contrast);
+  --info-bg: var(--highlight);
+  --info-text: var(--highlight-contrast);
+
+  --rail: var(--brand);
+  --rail-text: var(--brand-contrast);
+  --rail-accent: var(--highlight);
+  --rail-surface: color-mix(in srgb, var(--brand-contrast) 12%, var(--brand));
+  --rail-soft: color-mix(in srgb, var(--brand-contrast) 35%, var(--brand));
+  --rail-muted: color-mix(in srgb, var(--brand-contrast) 80%, var(--brand));
+  --save-bg: var(--brand-contrast);
+  --save-text: var(--brand);
+
+  --danger: #c4122f;
+  --danger-bg: #fde7ea;
+  --warn-bg: #ffe9dc;
+  --warn-text: #8a2a00;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0c10;
+    --panel: #111318;
+    --surface: #1a1d24;
+    --text: #f3f4f7;
+    --text-body: #d3d5dc;
+    --muted: #a0a4af;
+    --border: #272a33;
+    --border-strong: #f3f4f7;
+    --chip: #1c1f27;
+    --skeleton: #1e2129;
+    --overlay: rgb(0 0 0 / 0.55);
+
+    --accent: color-mix(in srgb, var(--brand) 45%, white);
+    --accent-text: var(--bg);
+    --link: var(--accent);
+    --focus: var(--accent);
+    --focus-halo: color-mix(in srgb, var(--focus) 25%, transparent);
+    --selected: color-mix(in srgb, var(--brand) 18%, var(--bg));
+
+    --danger: #ff6b7d;
+    --danger-bg: #3a1219;
+    --warn-bg: #3a2410;
+    --warn-text: #ffb27a;
+
+    color-scheme: dark;
+  }
+}

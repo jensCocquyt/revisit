@@ -20,7 +20,7 @@ One search box that matches both ways at once:
 - **By meaning**: "that piece about burnout in remote teams" finds it without those words, across languages.
 - **Exactly**: names, error codes, URLs, quotes.
 
-Results show a snippet or thumbnail and why it matched, and can be narrowed by type and time.
+Results show a snippet with the matching words highlighted, or a thumbnail, and can be narrowed by type and time.
 
 The bar: something saved weeks ago is found from a vague description in seconds.
 

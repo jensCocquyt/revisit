@@ -20,13 +20,13 @@ Replace the step 1 interface with the approved design: a blue add rail on the le
 ## Checklist
 
 - [x] Tokens and fonts
-- [x] Add rail: paste or drop, optional note, Save, save errors, just added
+- [x] Add rail: paste, drop or Upload file, optional note, Save, save errors, just added
 - [x] Search box, kind chips, time filter
 - [x] Results and recent rows with thumbnails, highlights and status labels
 - [x] States: searching, no matches, nothing in the filtered range, nothing saved yet
 - [x] Item panel: link, text, screenshot, failed, inline delete confirm
 - [x] 600 to 900px add bar
-- [x] Phone: Add band, add sheet with Paste and Choose screenshot, saved toast with Undo, full-screen item view
+- [x] Phone: Add band, add sheet with Paste and Upload file, saved toast with Undo, full-screen item view
 - [x] Light and dark, checked at 1280, 800 and 375px wide
 
 ## Open questions
@@ -36,6 +36,6 @@ Replace the step 1 interface with the approved design: a blue add rail on the le
 
 ## Review
 
-- Checked against a scratch database in light and dark at 1280, 800 and 375px: recent with Reading…, Failed and Page not read, search with highlights, no matches, nothing in the past week, nothing saved yet, save error, page-wide paste, Ctrl + Enter, just added, item panel for link, screenshot and failed items, inline delete, add sheet, Choose screenshot, saved toast and Undo.
+- Checked against a scratch database in light and dark at 1280, 800 and 375px: recent with Reading…, Failed and Page not read, search with highlights, no matches, nothing in the past week, nothing saved yet, save error, page-wide paste, Ctrl + Enter, just added, item panel for link, screenshot and failed items, inline delete, add sheet, Upload file in the rail and the sheet, saved toast and Undo.
 - Saving a link that is already saved shows "Already saved." without Undo, so Undo never deletes an older item.
 - Not exercised by hand: the phone Paste button, which needs clipboard permission.

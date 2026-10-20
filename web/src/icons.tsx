@@ -40,6 +40,14 @@ export function BackIcon() {
   );
 }
 
+export function UploadIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 16V4M7 9l5-5 5 5M5 20h14" />
+    </svg>
+  );
+}
+
 export function AlertIcon() {
   return (
     <svg className="icon icon-alert" viewBox="0 0 24 24" aria-hidden="true">

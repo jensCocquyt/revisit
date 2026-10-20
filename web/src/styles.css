@@ -310,6 +310,31 @@ mark {
   outline-offset: 2px;
 }
 
+.add-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.add-upload .file-button {
+  gap: var(--space-2);
+  min-height: 44px;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+
+.add-upload .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.add-hint {
+  font-size: var(--text-xs);
+  color: var(--rail-muted);
+}
+
 .save-button {
   display: flex;
   align-items: center;
@@ -1300,6 +1325,7 @@ mark {
     padding: 0 18px;
   }
 
+  .rail .add-upload,
   .rail .add-kind,
   .rail .add-problem {
     grid-column: 1 / -1;

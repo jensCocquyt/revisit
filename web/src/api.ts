@@ -15,8 +15,10 @@ export type SearchFilters = { kind?: ItemKind; from?: string };
 
 export type Capture = SaveItemRequest | { kind: "screenshot"; image: File; note?: string };
 
-export async function listItems(filters: SearchFilters): Promise<Item[]> {
-  return (await request<ItemList>(`/api/items?${filterParams(filters)}`)).items;
+export async function listItems(filters: SearchFilters, limit?: number): Promise<Item[]> {
+  const params = filterParams(filters);
+  if (limit) params.set("limit", String(limit));
+  return (await request<ItemList>(`/api/items?${params}`)).items;
 }
 
 export function getItem(id: string): Promise<ItemDetail> {

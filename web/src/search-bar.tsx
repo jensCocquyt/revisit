@@ -1,47 +1,94 @@
+import type { RefObject } from "react";
 import type { ItemKind, SearchFilters } from "./api";
+import { kindLabels } from "./format";
+import { CloseIcon, SearchIcon } from "./icons";
 
 export type Period = "any" | "week" | "month" | "year";
 
 export type Filters = { kind: ItemKind | ""; period: Period };
 
+export const noFilters: Filters = { kind: "", period: "any" };
+
 export function SearchBar(props: {
+  inputRef: RefObject<HTMLInputElement | null>;
   query: string;
   onQuery: (query: string) => void;
   filters: Filters;
   onFilters: (filters: Filters) => void;
+  showFilters: boolean;
+  label: string | null;
+  placeholder: string;
 }) {
   const { query, onQuery, filters, onFilters } = props;
   return (
     <search className="search">
-      <input
-        type="search"
-        aria-label="Search"
-        placeholder="Search by meaning or exact words"
-        value={query}
-        onChange={(event) => onQuery(event.target.value)}
-      />
-      <select
-        aria-label="Kind"
-        value={filters.kind}
-        onChange={(event) => onFilters({ ...filters, kind: event.target.value as ItemKind | "" })}
-      >
-        <option value="">All kinds</option>
-        <option value="text">Text</option>
-        <option value="link">Links</option>
-        <option value="screenshot">Screenshots</option>
-      </select>
-      <select
-        aria-label="Saved"
-        value={filters.period}
-        onChange={(event) => onFilters({ ...filters, period: event.target.value as Period })}
-      >
-        <option value="any">Any time</option>
-        <option value="week">Past week</option>
-        <option value="month">Past month</option>
-        <option value="year">Past year</option>
-      </select>
+      <div className="search-box">
+        <SearchIcon />
+        <input
+          ref={props.inputRef}
+          type="search"
+          aria-label="Search"
+          aria-keyshortcuts="/"
+          placeholder={props.placeholder}
+          value={query}
+          onChange={(event) => onQuery(event.target.value)}
+        />
+        {query && (
+          <button
+            type="button"
+            className="search-clear"
+            aria-label="Clear search"
+            onClick={() => onQuery("")}
+          >
+            <CloseIcon />
+          </button>
+        )}
+        <span className="key search-key" aria-hidden="true">
+          /
+        </span>
+      </div>
+      {props.showFilters && (
+        <div className="filters">
+          <fieldset className="chips">
+            <legend className="visually-hidden">Kind</legend>
+            {kindOptions.map(([kind, label]) => (
+              <button
+                key={kind}
+                type="button"
+                className="chip"
+                aria-pressed={filters.kind === kind}
+                onClick={() => onFilters({ ...filters, kind })}
+              >
+                {label}
+              </button>
+            ))}
+            <span className="chip-select">
+              <select
+                aria-label="Saved"
+                className="chip"
+                data-active={filters.period !== "any" || undefined}
+                value={filters.period}
+                onChange={(event) =>
+                  onFilters({ ...filters, period: event.target.value as Period })
+                }
+              >
+                {periods.map((period) => (
+                  <option key={period} value={period}>
+                    {periodLabels[period]}
+                  </option>
+                ))}
+              </select>
+            </span>
+          </fieldset>
+          {props.label && <span className="list-label">{props.label}</span>}
+        </div>
+      )}
     </search>
   );
+}
+
+export function isFiltered(filters: Filters): boolean {
+  return filters.kind !== noFilters.kind || filters.period !== noFilters.period;
 }
 
 // Starts at local midnight so the value, and with it the query key, is stable for the day.
@@ -53,6 +100,22 @@ export function toSearchFilters(filters: Filters, now = new Date()): SearchFilte
   from.setDate(from.getDate() - days);
   return { kind: filters.kind || undefined, from: from.toISOString() };
 }
+
+export const periodLabels: Record<Period, string> = {
+  any: "Any time",
+  week: "Past week",
+  month: "Past month",
+  year: "Past year",
+};
+
+const periods = Object.keys(periodLabels) as Period[];
+
+const kindOptions: [ItemKind | "", string][] = [
+  ["", "All"],
+  ["text", kindLabels.text],
+  ["link", kindLabels.link],
+  ["screenshot", kindLabels.screenshot],
+];
 
 const daysByPeriod: Record<Period, number | undefined> = {
   any: undefined,

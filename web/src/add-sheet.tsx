@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useEffectEvent, useId, useRef } from "react";
-import { deleteItem, type Item } from "./api";
+import { deleteItem, type Item, type SavedItem } from "./api";
 import { asSentence } from "./format";
 import { CloseIcon, PlusIcon } from "./icons";
 import { refreshLists } from "./queries";
@@ -55,11 +55,11 @@ export function AddSheet(props: {
 }
 
 export function SavedToast(props: {
-  item: Item;
+  saved: SavedItem;
   onDone: () => void;
   onUndone: (id: string) => void;
 }) {
-  const { item } = props;
+  const { item, isNew } = props.saved;
   const queryClient = useQueryClient();
   const undo = useMutation({
     mutationFn: () => deleteItem(item.id),
@@ -76,10 +76,18 @@ export function SavedToast(props: {
 
   return (
     <div role="status" className="toast">
-      <span>{undo.error ? asSentence(undo.error.message) : savedMessages[item.kind]}</span>
-      <button type="button" disabled={undo.isPending} onClick={() => undo.mutate()}>
-        Undo
-      </button>
+      <span>
+        {undo.error
+          ? asSentence(undo.error.message)
+          : isNew
+            ? savedMessages[item.kind]
+            : "Already saved."}
+      </span>
+      {isNew && (
+        <button type="button" disabled={undo.isPending} onClick={() => undo.mutate()}>
+          Undo
+        </button>
+      )}
     </div>
   );
 }

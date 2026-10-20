@@ -10,21 +10,15 @@ import {
   useRef,
   useState,
 } from "react";
-import { type Capture, type Item, saveItem } from "./api";
+import { type Capture, type SavedItem, saveItem } from "./api";
 import { asSentence, formatBytes, modifierKey } from "./format";
 import { AlertIcon } from "./icons";
 import { isEditable } from "./shortcuts";
 
-export type Draft = { text: string; note: string; image: File | null };
-
-export const emptyDraft: Draft = { text: "", note: "", image: null };
-
-type Problem = { title: string; detail: string };
-
 export function AddForm(props: {
   draft: Draft;
   onDraft: Dispatch<SetStateAction<Draft>>;
-  onSaved: (item: Item) => void;
+  onSaved: (saved: SavedItem) => void;
   inSheet?: boolean;
 }) {
   const { draft, onDraft, onSaved, inSheet = false } = props;
@@ -57,14 +51,14 @@ export function AddForm(props: {
         : { kind: "text", text: draft.text, note };
     const saved = draft;
     save.mutate(capture, {
-      onSuccess: (item) => {
+      onSuccess: (result) => {
         // Keep anything typed or attached while the save was in flight.
         onDraft((current) => ({
           text: current.text === saved.text ? "" : current.text,
           note: current.note === saved.note ? "" : current.note,
           image: current.image === saved.image ? null : current.image,
         }));
-        onSaved(item);
+        onSaved(result);
       },
     });
   }
@@ -228,6 +222,12 @@ export function AddForm(props: {
     </form>
   );
 }
+
+export type Draft = { text: string; note: string; image: File | null };
+
+export const emptyDraft: Draft = { text: "", note: "", image: null };
+
+type Problem = { title: string; detail: string };
 
 function saveProblem(error: Error, capture: Capture | undefined): Problem {
   return {

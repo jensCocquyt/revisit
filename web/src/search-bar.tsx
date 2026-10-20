@@ -3,12 +3,6 @@ import type { ItemKind, SearchFilters } from "./api";
 import { kindLabels } from "./format";
 import { CloseIcon, SearchIcon } from "./icons";
 
-export type Period = "any" | "week" | "month" | "year";
-
-export type Filters = { kind: ItemKind | ""; period: Period };
-
-export const noFilters: Filters = { kind: "", period: "any" };
-
 export function SearchBar(props: {
   inputRef: RefObject<HTMLInputElement | null>;
   query: string;
@@ -86,6 +80,12 @@ export function SearchBar(props: {
     </search>
   );
 }
+
+export type Period = "any" | "week" | "month" | "year";
+
+export type Filters = { kind: ItemKind | ""; period: Period };
+
+export const noFilters: Filters = { kind: "", period: "any" };
 
 export function isFiltered(filters: Filters): boolean {
   return filters.kind !== noFilters.kind || filters.period !== noFilters.period;

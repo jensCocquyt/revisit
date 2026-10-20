@@ -15,6 +15,8 @@ export type SearchFilters = { kind?: ItemKind; from?: string };
 
 export type Capture = SaveItemRequest | { kind: "screenshot"; image: File; note?: string };
 
+export type SavedItem = { item: Item; isNew: boolean };
+
 export async function listItems(filters: SearchFilters, limit?: number): Promise<Item[]> {
   const params = filterParams(filters);
   if (limit) params.set("limit", String(limit));
@@ -25,18 +27,10 @@ export function getItem(id: string): Promise<ItemDetail> {
   return request<ItemDetail>(`/api/items/${id}`);
 }
 
-export function saveItem(capture: Capture): Promise<Item> {
-  if (capture.kind === "screenshot") {
-    const form = new FormData();
-    form.set("image", capture.image);
-    if (capture.note) form.set("note", capture.note);
-    return request<Item>("/api/items", { method: "POST", body: form });
-  }
-  return request<Item>("/api/items", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(capture),
-  });
+// Saving a link that is already saved answers 200 with the existing item.
+export async function saveItem(capture: Capture): Promise<SavedItem> {
+  const response = await send("/api/items", { method: "POST", ...saveBody(capture) });
+  return { item: (await response.json()) as Item, isNew: response.status === 201 };
 }
 
 export function imageUrl(id: string): string {
@@ -68,11 +62,26 @@ function filterParams(filters: SearchFilters): URLSearchParams {
   return params;
 }
 
+function saveBody(capture: Capture): RequestInit {
+  if (capture.kind === "screenshot") {
+    const form = new FormData();
+    form.set("image", capture.image);
+    if (capture.note) form.set("note", capture.note);
+    return { body: form };
+  }
+  return { headers: { "content-type": "application/json" }, body: JSON.stringify(capture) };
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await send(path, init);
+  return (response.status === 204 ? undefined : await response.json()) as T;
+}
+
+async function send(path: string, init?: RequestInit): Promise<Response> {
   const response = await fetch(path, init);
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as ErrorResponse | null;
     throw new Error(body?.error ?? `${response.status} ${response.statusText}`);
   }
-  return (response.status === 204 ? undefined : await response.json()) as T;
+  return response;
 }

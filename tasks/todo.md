@@ -36,5 +36,6 @@ Replace the step 1 interface with the approved design: a blue add rail on the le
 
 ## Review
 
-- Checked against a scratch database in light and dark at 1280, 800 and 375px: recent with Reading…, Failed and Page not read, search with highlights, no matches, nothing in the past week, nothing saved yet, save error, page-wide paste, Ctrl + Enter, just added, item panel for link, screenshot and failed items, inline delete, add sheet, saved toast and Undo.
-- Not exercised by hand: the phone Paste button (needs clipboard permission) and Choose screenshot.
+- Checked against a scratch database in light and dark at 1280, 800 and 375px: recent with Reading…, Failed and Page not read, search with highlights, no matches, nothing in the past week, nothing saved yet, save error, page-wide paste, Ctrl + Enter, just added, item panel for link, screenshot and failed items, inline delete, add sheet, Choose screenshot, saved toast and Undo.
+- Saving a link that is already saved shows "Already saved." without Undo, so Undo never deletes an older item.
+- Not exercised by hand: the phone Paste button, which needs clipboard permission.

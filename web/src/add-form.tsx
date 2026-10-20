@@ -152,7 +152,9 @@ export function AddForm(props: {
           className="add-input"
           rows={inSheet ? 3 : 5}
           placeholder={
-            inSheet ? "Paste a link, text or screenshot" : "Paste or drop a link, text or file"
+            inSheet
+              ? "Paste a link, text or screenshot"
+              : "Paste or drop a link, text or screenshot"
           }
           value={draft.text}
           onChange={(event) => update({ text: event.target.value })}
@@ -167,7 +169,7 @@ export function AddForm(props: {
             <UploadIcon />
             {problem ? "Upload another" : "Upload file"}
           </UploadButton>
-          {!problem && <span className="add-hint">max 10 MB</span>}
+          {!problem && <span className="add-hint">Images up to 10 MB</span>}
         </div>
       )}
       {link && (

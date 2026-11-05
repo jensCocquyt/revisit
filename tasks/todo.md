@@ -6,14 +6,15 @@ Use Revisit from the phone and the laptop over the internet, signed in with the 
 
 ## Out of scope
 
-A custom domain, more than one user, a sign-out button, copying the local items to the cloud, a staging environment, a browser extension or share target, "more like this", PDFs.
+A custom domain, letting anyone but the owner sign in, a sign-out button, copying the local items to the cloud, a staging environment, a browser extension or share target, "more like this", PDFs.
 
 ## Decisions
 
 - **Hosting:** one Lambda function (Node 24, arm64) behind a Function URL, which comes with HTTPS and needs no domain. It serves the web app and the API, and runs the processing. Every always-on option costs $12 or more a month: App Runner is closed to new customers, Fargate needs a load balancer, a virtual machine needs a public IPv4 address and a domain, and the cheapest managed Postgres on AWS is about $15.
 - **Database:** Neon free plan in London (`aws-eu-west-2`), Postgres 18 with pgvector and pg_trgm, compute fixed at 0.25 CU so a burst cannot use up the monthly hours. It sleeps after 5 idle minutes and wakes in a few hundred milliseconds. The app uses Neon's pooled URL with a 10 s connect timeout and closes its connection before each Lambda run ends, because a frozen instance keeps its connections open and may keep Neon awake; migrations use the direct URL.
 - **Images:** in S3 instead of Postgres, since Neon's free storage is 1 GB. A Lambda request is capped at 6 MB, so the browser uploads straight to S3 with a presigned POST limited to 10 MB, and the server checks the type from the file's bytes before saving the item. Images are shown through short-lived presigned links.
-- **Sign-in:** Google over OpenID Connect with `openid-client` (authorization code with PKCE). Only the owner's verified email gets in. A signed `HttpOnly`, `Secure`, `SameSite=Lax` session cookie lasts 30 days. Everything except `/auth/*` needs the session: pages redirect to Google, `/api` answers 401 and the web app then goes to sign-in. Requests without a session stop before they touch Neon or Bedrock, so strangers hitting the public URL cost nothing.
+- **Sign-in:** Google over OpenID Connect with `openid-client` (authorization code with PKCE). Only the owner's verified email gets in; the first sign-in creates the owner's user. A signed `HttpOnly`, `Secure`, `SameSite=Lax` session cookie lasts 30 days. Everything except `/auth/*` needs the session: pages redirect to Google, `/api` answers 401 and the web app then goes to sign-in. Requests without a session stop before they touch Neon or Bedrock, so strangers hitting the public URL cost nothing.
+- **Users:** items belong to a user and every item query is scoped to the signed-in one, so letting more people in later is a sign-in change only. Doing it now means the queries steps 3 and 4 add are written per user from the start.
 - **Secrets and settings:** in Parameter Store under `/revisit/`, written by hand with the AWS CLI, so secrets never enter Terraform state or the repo. Lambda reads them once per cold start; locally they come from `.env`.
 - **Infrastructure:** Terraform in `infra/bootstrap` (state bucket, deploy role) and `infra/app` (the rest), applied by the owner from the laptop. State lives in S3 with S3's own lock file; the bootstrap state moves into its own bucket after the first apply. Account-specific values stay in git-ignored files.
 - **Deploy:** after CI passes on `main`, a GitHub Actions job assumes the deploy role through OIDC, updates the function code (about 40 MB zipped, under the 50 MB direct upload limit), waits for the update and runs the migrations. The deploy role can only update and invoke this one function.
@@ -31,7 +32,9 @@ A custom domain, more than one user, a sign-out button, copying the local items 
 
 ## Data
 
-- `items` gains `image_key` and `claimed_at`; the `image` column goes.
+- `users`: id, issuer, subject, email, created_at, unique on (issuer, subject). That pair is how OpenID Connect identifies an account, so another provider later (Microsoft, GitHub) adds rows, not columns. Email is not the key: it can change, and not every provider verifies it.
+- `items` gains `user_id`, `image_key` and `claimed_at`; the `image` column goes. Links are unique per user, on (user_id, url). Passages belong to a user through their item. Image keys start with the user's id.
+- Local items saved before this step have no owner: `user_id` starts nullable in 2a, the owner's first sign-in claims them, and the 2b migration makes it required.
 - The local instance becomes dev only. Screenshots saved there before this step keep their text and stay searchable, but their image no longer shows.
 
 ## Resources
@@ -71,6 +74,7 @@ The AWS account stays on the Free plan for now. That plan ends on 2027-02-15 ($1
 ## Proof
 
 - Sign-in tests: no session gets a redirect or 401; a valid cookie passes; a tampered or expired cookie fails; the callback turns away another account and an unverified email, with the token exchange faked.
+- Isolation tests: one user never lists, finds, opens, retries or deletes another user's items, and saving a link another user already saved creates a new item.
 - Upload tests with a fake image store: missing object, too large, not an image, valid; deleting an item deletes its image.
 - Processing tests: two overlapping runs process each item exactly once; stuck items return to `pending`.
 - Eval rerun, since processing changes: at least 18 of 20 queries find their item in the top 5.
@@ -82,13 +86,14 @@ The AWS account stays on the Free plan for now. That plan ends on 2027-02-15 ($1
 - [ ] Google OAuth client with a localhost redirect (by hand)
 - [ ] `/auth/login`, `/auth/callback`, session cookie, owner check
 - [ ] Session required everywhere else; the web app handles 401; Vite forwards `/auth`
+- [ ] `users` table and `items.user_id`; every item query, search included, takes the user from the session; the first sign-in claims unowned items
 - [ ] `.env.example`, README, the `LISTEN_HOST` comment
 - [ ] Google settings in your own `.env` before the local instance restarts, or it turns every request away
 - [ ] Tests
 
 ### 2b. Ready for Lambda
 - [ ] Old bootstrap torn down; `infra/bootstrap`; `infra/app` with the two image buckets
-- [ ] Images in S3: presigned upload, type check, presigned image links, delete; migration
+- [ ] Images in S3: presigned upload, type check, presigned image links, delete; migration, which also makes `user_id` required
 - [ ] Claiming with `SKIP LOCKED` and `claimed_at`, stuck-item reset, async `wake()`
 - [ ] Lambda handler for web requests, `process` and `migrate`; settings from Parameter Store
 - [ ] README "Running it" and `.env.example`: the dev bucket and image settings

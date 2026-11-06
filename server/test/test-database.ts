@@ -12,5 +12,5 @@ export function createTestPool(): pg.Pool {
 }
 
 export async function emptyDatabase(pool: pg.Pool): Promise<void> {
-  await pool.query("TRUNCATE items CASCADE");
+  await pool.query("TRUNCATE users, items CASCADE");
 }

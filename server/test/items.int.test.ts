@@ -9,10 +9,12 @@ import { processItem, startProcessor } from "../src/processing/process-items.js"
 import type { ReadScreenshot } from "../src/screenshots/read-screenshot.js";
 import { fakeEmbed } from "./fake-embed.js";
 import { createTestPool, emptyDatabase } from "./test-database.js";
+import { createTestUser, type TestUser, testAuth, withSession } from "./test-user.js";
 
 const pool = createTestPool();
 const wake = vi.fn();
-const app = createApp({ pool, embed: fakeEmbed, processor: { wake } });
+const app = createApp({ pool, embed: fakeEmbed, processor: { wake }, auth: testAuth });
+let user: TestUser;
 const unreachableLink: ReadLink = async () => {
   throw new Error("no link reading in this test");
 };
@@ -28,6 +30,7 @@ const processing = {
 
 beforeEach(async () => {
   await emptyDatabase(pool);
+  user = await createTestUser(pool);
   wake.mockClear();
 });
 
@@ -67,10 +70,10 @@ describe("reading items", () => {
   it("lists newest first and returns the body of one item", async () => {
     const first = (await (await saveText("first")).json()) as Item;
     const second = (await (await saveText("second")).json()) as Item;
-    const list = (await (await app.request("/api/items")).json()) as ItemList;
+    const list = (await (await request("/api/items")).json()) as ItemList;
     expect(list.items.map((item) => item.id)).toEqual([second.id, first.id]);
 
-    const detail = (await (await app.request(`/api/items/${first.id}`)).json()) as ItemDetail;
+    const detail = (await (await request(`/api/items/${first.id}`)).json()) as ItemDetail;
     expect(detail.body).toBe("first");
   });
 
@@ -86,12 +89,12 @@ describe("reading items", () => {
     expect(sinceLastYear).toEqual([recent.id]);
     expect(await listIds({ to: lastYear })).toEqual([old.id]);
     expect(await listIds({ kind: "text" })).toHaveLength(2);
-    expect((await app.request("/api/items?kind=video")).status).toBe(400);
+    expect((await request("/api/items?kind=video")).status).toBe(400);
   });
 
   it("answers 404 for an unknown id and 400 for a malformed one", async () => {
-    expect((await app.request(`/api/items/${crypto.randomUUID()}`)).status).toBe(404);
-    expect((await app.request("/api/items/not-an-id")).status).toBe(400);
+    expect((await request(`/api/items/${crypto.randomUUID()}`)).status).toBe(404);
+    expect((await request("/api/items/not-an-id")).status).toBe(400);
   });
 });
 
@@ -100,7 +103,7 @@ describe("processing", () => {
     const saved = (await (await saveText("Leek soup\nWith potatoes.", "winter")).json()) as Item;
     await processItem(processing, await requireItem(saved.id));
 
-    expect(await findItem(pool, saved.id)).toMatchObject({ status: "ready", error: null });
+    expect(await findItem(pool, user.id, saved.id)).toMatchObject({ status: "ready", error: null });
     const { rows } = await pool.query(
       "SELECT text FROM passages WHERE item_id = $1 ORDER BY position",
       [saved.id],
@@ -114,14 +117,17 @@ describe("processing", () => {
       throw new Error("throttled");
     };
     await processItem({ ...processing, embed: failingEmbed }, await requireItem(saved.id));
-    expect(await findItem(pool, saved.id)).toMatchObject({ status: "failed", error: "throttled" });
+    expect(await findItem(pool, user.id, saved.id)).toMatchObject({
+      status: "failed",
+      error: "throttled",
+    });
 
-    const retry = await app.request(`/api/items/${saved.id}/retry`, { method: "POST" });
+    const retry = await request(`/api/items/${saved.id}/retry`, { method: "POST" });
     expect(retry.status).toBe(202);
     expect(await retry.json()).toMatchObject({ status: "pending", error: null });
     expect(wake).toHaveBeenCalledTimes(2);
 
-    const again = await app.request(`/api/items/${saved.id}/retry`, { method: "POST" });
+    const again = await request(`/api/items/${saved.id}/retry`, { method: "POST" });
     expect(again.status).toBe(409);
   });
 
@@ -134,8 +140,8 @@ describe("processing", () => {
     try {
       await vi.waitFor(
         async () => {
-          expect((await findItem(pool, waiting.id))?.status).toBe("ready");
-          expect((await findItem(pool, interrupted.id))?.status).toBe("ready");
+          expect((await findItem(pool, user.id, waiting.id))?.status).toBe("ready");
+          expect((await findItem(pool, user.id, interrupted.id))?.status).toBe("ready");
         },
         { timeout: 5000, interval: 50 },
       );
@@ -185,7 +191,7 @@ describe("links", () => {
     const readLink: ReadLink = async () => ({ title: "Leek soup", body: "Leeks.", error: null });
     await processItem({ ...processing, readLink }, await requireItem(saved.id));
 
-    expect(await findItem(pool, saved.id)).toMatchObject({
+    expect(await findItem(pool, user.id, saved.id)).toMatchObject({
       status: "ready",
       title: "Leek soup",
       body: "Leeks.",
@@ -210,11 +216,11 @@ describe("links", () => {
     });
     await processItem({ ...processing, readLink }, await requireItem(saved.id));
 
-    expect(await findItem(pool, saved.id)).toMatchObject({
+    expect(await findItem(pool, user.id, saved.id)).toMatchObject({
       status: "ready",
       error: "the site answered 404",
     });
-    const retry = await app.request(`/api/items/${saved.id}/retry`, { method: "POST" });
+    const retry = await request(`/api/items/${saved.id}/retry`, { method: "POST" });
     expect(retry.status).toBe(202);
   });
 });
@@ -231,7 +237,7 @@ describe("screenshots", () => {
     const saved = (await response.json()) as Item;
     expect(saved).toMatchObject({ kind: "screenshot", title: null, note: "red square" });
 
-    const image = await app.request(`/api/items/${saved.id}/image`);
+    const image = await request(`/api/items/${saved.id}/image`);
     expect(image.headers.get("content-type")).toBe("image/png");
     expect(Buffer.from(await image.arrayBuffer()).equals(png)).toBe(true);
 
@@ -240,7 +246,7 @@ describe("screenshots", () => {
       return { title: "Red square", body: "A red square.", error: null };
     };
     await processItem({ ...processing, readScreenshot }, await requireItem(saved.id));
-    expect(await findItem(pool, saved.id)).toMatchObject({
+    expect(await findItem(pool, user.id, saved.id)).toMatchObject({
       status: "ready",
       title: "Red square",
       body: "A red square.",
@@ -260,7 +266,7 @@ describe("screenshots", () => {
 
   it("answers 404 for an item without an image", async () => {
     const saved = (await (await saveText("no image")).json()) as Item;
-    expect((await app.request(`/api/items/${saved.id}/image`)).status).toBe(404);
+    expect((await request(`/api/items/${saved.id}/image`)).status).toBe(404);
   });
 });
 
@@ -269,16 +275,16 @@ describe("deleting", () => {
     const saved = (await (await saveText("to delete")).json()) as Item;
     await processItem(processing, await requireItem(saved.id));
 
-    expect((await app.request(`/api/items/${saved.id}`, { method: "DELETE" })).status).toBe(204);
-    expect((await app.request(`/api/items/${saved.id}`)).status).toBe(404);
+    expect((await request(`/api/items/${saved.id}`, { method: "DELETE" })).status).toBe(204);
+    expect((await request(`/api/items/${saved.id}`)).status).toBe(404);
     const { rows } = await pool.query("SELECT 1 FROM passages WHERE item_id = $1", [saved.id]);
     expect(rows).toHaveLength(0);
-    expect((await app.request(`/api/items/${saved.id}`, { method: "DELETE" })).status).toBe(404);
+    expect((await request(`/api/items/${saved.id}`, { method: "DELETE" })).status).toBe(404);
   });
 });
 
 async function listIds(filters: Record<string, string>): Promise<string[]> {
-  const response = await app.request(`/api/items?${new URLSearchParams(filters)}`);
+  const response = await request(`/api/items?${new URLSearchParams(filters)}`);
   return ((await response.json()) as ItemList).items.map((item) => item.id);
 }
 
@@ -294,11 +300,11 @@ function uploadScreenshot(bytes: Buffer, note?: string) {
   const form = new FormData();
   form.set("image", new File([new Uint8Array(bytes)], "screenshot.png", { type: "image/png" }));
   if (note) form.set("note", note);
-  return app.request("/api/items", { method: "POST", body: form });
+  return request("/api/items", { method: "POST", body: form });
 }
 
 function post(path: string, body: unknown) {
-  return app.request(path, {
+  return request(path, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -306,7 +312,11 @@ function post(path: string, body: unknown) {
 }
 
 async function requireItem(id: string): Promise<ItemDetail> {
-  const item = await findItem(pool, id);
+  const item = await findItem(pool, user.id, id);
   if (!item) throw new Error(`item ${id} missing`);
   return item;
+}
+
+function request(path: string, init?: RequestInit) {
+  return app.request(path, withSession(user, init));
 }

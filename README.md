@@ -32,6 +32,8 @@ Single user. Saving starts from a web page. Content comes in multiple languages.
 
 Needs Node 24, Docker, and AWS credentials that can call Bedrock in eu-west-1: Cohere Embed v4 for search, and a Claude model for reading screenshots.
 
+Signing in needs a Google OAuth client. In the Google Cloud console, under Google Auth Platform: keep the app in Testing with your own account as a test user, allow the `openid` and `email` scopes, and create a Web application client with `http://localhost:3000/auth/callback` and `http://localhost:5173/auth/callback` as redirects. Put its ID and secret, your email and a random session secret (`node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`) in `.env`.
+
 ```bash
 cp .env.example .env
 docker compose up -d postgres
@@ -39,7 +41,7 @@ cd web && npm ci && npm run build
 cd ../server && npm ci && npm run build && npm start
 ```
 
-Then open http://localhost:3000. For development, run `npm run dev` in both `server/` and `web/` and open the Vite URL; it forwards `/api` to the server.
+Then open http://localhost:3000. For development, run `npm run dev` in both `server/` and `web/`, set `APP_URL=http://localhost:5173` and open that URL; Vite forwards `/api` and `/auth` to the server.
 
 Checks, from `server/` (tests and eval each wipe their own database, set in `.env`):
 

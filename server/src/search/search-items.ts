@@ -8,12 +8,13 @@ export type SearchDeps = { pool: pg.Pool; embed: Embed };
 
 export async function searchItems(
   deps: SearchDeps,
+  userId: string,
   query: string,
   filters: ItemFilters,
 ): Promise<SearchResult[]> {
   const [vector] = await deps.embed([query], "query");
   if (!vector) throw new Error("query embedding missing");
-  const filterParams = [filters.kind ?? null, filters.from ?? null, filters.to ?? null];
+  const filterParams = [filters.kind ?? null, filters.from ?? null, filters.to ?? null, userId];
   const lists = await Promise.all([
     findHits(deps.pool, "meaning", meaningSql, [JSON.stringify(vector), ...filterParams]),
     findHits(deps.pool, "words", wordsSql, [query, ...filterParams]),
@@ -47,7 +48,8 @@ const headlineOptions = `StartSel=${highlightStart}, StopSel=${highlightEnd}, Ma
 
 const candidateColumns = `passages.id::text AS "passageId", passages.item_id AS "itemId"`;
 const fromPassages = "FROM passages JOIN items ON items.id = passages.item_id";
-const filters = `($2::text IS NULL OR items.kind = $2)
+const filters = `items.user_id = $5
+  AND ($2::text IS NULL OR items.kind = $2)
   AND ($3::timestamptz IS NULL OR items.created_at >= $3)
   AND ($4::timestamptz IS NULL OR items.created_at < $4)`;
 

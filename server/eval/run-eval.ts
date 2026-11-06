@@ -1,13 +1,16 @@
+import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { AnthropicBedrock } from "@anthropic-ai/bedrock-sdk";
 import { BedrockRuntimeClient } from "@aws-sdk/client-bedrock-runtime";
 import { z } from "zod";
 import { createApp } from "../src/app.js";
+import { createSessionToken, sessionCookie } from "../src/auth/session.js";
 import { readConfig } from "../src/config.js";
 import type { Item, SearchResults } from "../src/contract.js";
 import { createPool } from "../src/db/connection.js";
 import { findItem } from "../src/db/items.js";
 import { migrate } from "../src/db/migrate.js";
+import { signInUser } from "../src/db/users.js";
 import { createCohereEmbed } from "../src/embedding/cohere-on-bedrock.js";
 import type { FetchPage } from "../src/links/fetch-page.js";
 import { normalizeLinkUrl } from "../src/links/normalize-url.js";
@@ -24,12 +27,32 @@ const config = readConfig({ ...process.env, DATABASE_URL: databaseUrl });
 
 await migrate(config.databaseUrl);
 const pool = createPool(config.databaseUrl);
-await pool.query("TRUNCATE items CASCADE");
+await pool.query("TRUNCATE users, items CASCADE");
+const userId = await signInUser(pool, {
+  issuer: "https://eval.invalid",
+  subject: "eval",
+  email: "eval@eval.invalid",
+});
+const sessionSecret = randomBytes(32).toString("base64");
+const cookie = `${sessionCookie}=${await createSessionToken(userId, sessionSecret)}`;
 const embed = createCohereEmbed(
   new BedrockRuntimeClient({ region: config.awsRegion }),
   config.embeddingModelId,
 );
-const app = createApp({ pool, embed, processor: { wake: () => {} } });
+const app = createApp({
+  pool,
+  embed,
+  processor: { wake: () => {} },
+  auth: {
+    signIn: {
+      start: () => Promise.reject(new Error("the eval does not sign in")),
+      finish: () => Promise.reject(new Error("the eval does not sign in")),
+    },
+    ownerEmail: "eval@eval.invalid",
+    sessionSecret,
+    appUrl: new URL("http://localhost"),
+  },
+});
 
 const note = z.string().optional();
 const corpus = z
@@ -76,13 +99,13 @@ const processing = {
 const keyByItemId = new Map<string, string>();
 for (const entry of corpus) {
   const { key } = entry;
-  const response = await app.request("/api/items", await saveRequest(entry));
+  const response = await app.request("/api/items", withSession(await saveRequest(entry)));
   if (response.status !== 201) throw new Error(`saving ${key} failed: ${await response.text()}`);
   const item = (await response.json()) as Item;
-  const pending = await findItem(pool, item.id);
+  const pending = await findItem(pool, userId, item.id);
   if (!pending) throw new Error(`${key} disappeared`);
   await processItem(processing, pending);
-  const processed = await findItem(pool, item.id);
+  const processed = await findItem(pool, userId, item.id);
   if (processed?.status !== "ready") throw new Error(`${key} failed: ${processed?.error}`);
   keyByItemId.set(item.id, key);
 }
@@ -90,7 +113,10 @@ for (const entry of corpus) {
 let hits = 0;
 let reciprocalRankSum = 0;
 for (const { query, expected } of queries) {
-  const response = await app.request(`/api/search?${new URLSearchParams({ q: query })}`);
+  const response = await app.request(
+    `/api/search?${new URLSearchParams({ q: query })}`,
+    withSession({}),
+  );
   const { results } = (await response.json()) as SearchResults;
   const index = results.findIndex((result) => keyByItemId.get(result.item.id) === expected);
   const rank = index + 1;
@@ -127,6 +153,12 @@ async function saveRequest(entry: (typeof corpus)[number]): Promise<RequestInit>
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   };
+}
+
+function withSession(init: RequestInit): RequestInit {
+  const headers = new Headers(init.headers);
+  headers.set("cookie", cookie);
+  return { ...init, headers };
 }
 
 async function readJson(file: string): Promise<unknown> {

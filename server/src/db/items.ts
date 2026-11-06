@@ -20,13 +20,18 @@ export type ReadContent = { title: string | null; body: string | null; error: st
 export type EmbeddedPassage = { text: string; embedding: number[] };
 
 // Undefined when a link with the same address is already saved.
-export async function insertItem(db: Queryable, item: NewItem): Promise<Item | undefined> {
+export async function insertItem(
+  db: Queryable,
+  userId: string,
+  item: NewItem,
+): Promise<Item | undefined> {
   const { rows } = await db.query<ItemRow>(
-    `INSERT INTO items (kind, url, title, note, body, image, image_type)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     ON CONFLICT (url) DO NOTHING
+    `INSERT INTO items (user_id, kind, url, title, note, body, image, image_type)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT (user_id, url) DO NOTHING
      RETURNING ${itemColumns()}`,
     [
+      userId,
       item.kind,
       item.url,
       item.title,
@@ -39,16 +44,34 @@ export async function insertItem(db: Queryable, item: NewItem): Promise<Item | u
   return rows[0] && toItem(rows[0]);
 }
 
-export async function findLinkItem(db: Queryable, url: string): Promise<Item | undefined> {
+export async function findLinkItem(
+  db: Queryable,
+  userId: string,
+  url: string,
+): Promise<Item | undefined> {
   const { rows } = await db.query<ItemRow>(
-    `SELECT ${itemColumns()} FROM items WHERE kind = 'link' AND url = $1 LIMIT 1`,
-    [url],
+    `SELECT ${itemColumns()} FROM items WHERE user_id = $1 AND kind = 'link' AND url = $2`,
+    [userId, url],
   );
   return rows[0] && toItem(rows[0]);
 }
 
-export async function findItemImage(db: Queryable, id: string): Promise<StoredImage | undefined> {
-  const { rows } = await db.query<{ bytes: Buffer; mediaType: string }>(
+export async function findItemImage(
+  db: Queryable,
+  userId: string,
+  id: string,
+): Promise<StoredImage | undefined> {
+  const { rows } = await db.query<StoredImage>(
+    `SELECT image AS bytes, image_type AS "mediaType" FROM items
+     WHERE id = $1 AND user_id = $2 AND image IS NOT NULL`,
+    [id, userId],
+  );
+  return rows[0];
+}
+
+// Processing reads any user's screenshot; it never answers a request.
+export async function findImageToRead(db: Queryable, id: string): Promise<StoredImage | undefined> {
+  const { rows } = await db.query<StoredImage>(
     `SELECT image AS bytes, image_type AS "mediaType" FROM items
      WHERE id = $1 AND image IS NOT NULL`,
     [id],
@@ -58,41 +81,54 @@ export async function findItemImage(db: Queryable, id: string): Promise<StoredIm
 
 export async function listRecentItems(
   db: Queryable,
+  userId: string,
   filters: ItemFilters,
   limit: number,
 ): Promise<Item[]> {
   const { rows } = await db.query<ItemRow>(
     `SELECT ${itemColumns()} FROM items
-     WHERE ($1::text IS NULL OR kind = $1)
-       AND ($2::timestamptz IS NULL OR created_at >= $2)
-       AND ($3::timestamptz IS NULL OR created_at < $3)
+     WHERE user_id = $1
+       AND ($2::text IS NULL OR kind = $2)
+       AND ($3::timestamptz IS NULL OR created_at >= $3)
+       AND ($4::timestamptz IS NULL OR created_at < $4)
      ORDER BY created_at DESC, id DESC
-     LIMIT $4`,
-    [filters.kind ?? null, filters.from ?? null, filters.to ?? null, limit],
+     LIMIT $5`,
+    [userId, filters.kind ?? null, filters.from ?? null, filters.to ?? null, limit],
   );
   return rows.map(toItem);
 }
 
-export async function findItem(db: Queryable, id: string): Promise<ItemDetail | undefined> {
+export async function findItem(
+  db: Queryable,
+  userId: string,
+  id: string,
+): Promise<ItemDetail | undefined> {
   const { rows } = await db.query<ItemDetailRow>(
-    `SELECT ${itemColumns()}, body FROM items WHERE id = $1`,
-    [id],
+    `SELECT ${itemColumns()}, body FROM items WHERE id = $1 AND user_id = $2`,
+    [id, userId],
   );
   return rows[0] && toItemDetail(rows[0]);
 }
 
-export async function deleteItem(db: Queryable, id: string): Promise<boolean> {
-  const { rowCount } = await db.query("DELETE FROM items WHERE id = $1", [id]);
+export async function deleteItem(db: Queryable, userId: string, id: string): Promise<boolean> {
+  const { rowCount } = await db.query("DELETE FROM items WHERE id = $1 AND user_id = $2", [
+    id,
+    userId,
+  ]);
   return rowCount === 1;
 }
 
 // Failed items and links whose page could not be read both carry an error.
-export async function requeueItemWithError(db: Queryable, id: string): Promise<Item | undefined> {
+export async function requeueItemWithError(
+  db: Queryable,
+  userId: string,
+  id: string,
+): Promise<Item | undefined> {
   const { rows } = await db.query<ItemRow>(
     `UPDATE items SET status = 'pending', error = NULL, processed_at = NULL
-     WHERE id = $1 AND error IS NOT NULL
+     WHERE id = $1 AND user_id = $2 AND error IS NOT NULL
      RETURNING ${itemColumns()}`,
-    [id],
+    [id, userId],
   );
   return rows[0] && toItem(rows[0]);
 }

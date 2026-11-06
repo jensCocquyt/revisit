@@ -2,10 +2,14 @@ import { existsSync } from "node:fs";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono, type MiddlewareHandler } from "hono";
 import type pg from "pg";
+import { requireSession } from "./auth/require-session.js";
+import type { AuthSettings } from "./auth/sign-in.js";
 import type { ErrorResponse } from "./contract.js";
 import type { Embed } from "./embedding/embed.js";
 import { describeError, log } from "./log.js";
 import type { Processor } from "./processing/process-items.js";
+import { registerFinishSignInRoute } from "./routes/auth/finish-sign-in.js";
+import { registerStartSignInRoute } from "./routes/auth/start-sign-in.js";
 import { registerGetHealthRoute } from "./routes/health/get-health.js";
 import { registerDeleteItemRoute } from "./routes/items/delete-item.js";
 import { registerGetItemRoute } from "./routes/items/get-item.js";
@@ -19,12 +23,18 @@ export type AppDeps = {
   pool: pg.Pool;
   embed: Embed;
   processor: Pick<Processor, "wake">;
+  auth: AuthSettings;
   webDist?: string;
 };
 
-export function createApp(deps: AppDeps): Hono {
-  const app = new Hono();
+export type AppEnv = { Variables: { userId: string } };
+
+export function createApp(deps: AppDeps): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
   app.use(logRequests);
+  registerStartSignInRoute(app, deps);
+  registerFinishSignInRoute(app, deps);
+  app.use(requireSession(deps.auth.sessionSecret));
   registerGetHealthRoute(app, deps);
   registerSaveItemRoute(app, deps);
   registerListItemsRoute(app, deps);
@@ -42,7 +52,7 @@ export function createApp(deps: AppDeps): Hono {
   return app;
 }
 
-function serveWebApp(app: Hono, webDist: string): void {
+function serveWebApp(app: Hono<AppEnv>, webDist: string): void {
   if (!existsSync(webDist)) {
     log("warn", "web app not built, serving the API only", { webDist });
     return;

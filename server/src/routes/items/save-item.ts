@@ -1,21 +1,22 @@
 import type { Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
-import type { AppDeps } from "../../app.js";
+import type { AppDeps, AppEnv } from "../../app.js";
 import type { ErrorResponse, Item } from "../../contract.js";
 import { findLinkItem, insertItem, type NewItem } from "../../db/items.js";
 import { normalizeLinkUrl } from "../../links/normalize-url.js";
 import { detectImageType } from "../../screenshots/image-type.js";
 
 // JSON for text and links, multipart with an `image` file for screenshots.
-export function registerSaveItemRoute(app: Hono, deps: AppDeps): void {
+export function registerSaveItemRoute(app: Hono<AppEnv>, deps: AppDeps): void {
   app.post("/api/items", bodyLimit({ maxSize: maxRequestBytes, onError: tooLarge }), async (c) => {
     const isUpload = c.req.header("content-type")?.startsWith("multipart/form-data") ?? false;
     const parsed = isUpload ? await screenshotItem(c) : await jsonItem(c);
     if ("error" in parsed) return c.json<ErrorResponse>(parsed, 400);
-    const item = await insertItem(deps.pool, parsed);
+    const userId = c.get("userId");
+    const item = await insertItem(deps.pool, userId, parsed);
     if (!item) {
-      const existing = await findLinkItem(deps.pool, parsed.url ?? "");
+      const existing = await findLinkItem(deps.pool, userId, parsed.url ?? "");
       if (!existing) throw new Error("a saved link with this address vanished while saving");
       return c.json<Item>(existing, 200);
     }

@@ -1,15 +1,17 @@
 import type { Hono } from "hono";
 import { z } from "zod";
-import type { AppDeps } from "../../app.js";
+import type { AppDeps, AppEnv } from "../../app.js";
 import type { ItemList } from "../../contract.js";
 import { listRecentItems } from "../../db/items.js";
 import { itemFilterQuery } from "../shared/item-filters.js";
 import { validate } from "../shared/validate.js";
 
-export function registerListItemsRoute(app: Hono, deps: AppDeps): void {
+export function registerListItemsRoute(app: Hono<AppEnv>, deps: AppDeps): void {
   app.get("/api/items", validate("query", listItemsQuery), async (c) => {
     const { limit, ...filters } = c.req.valid("query");
-    return c.json<ItemList>({ items: await listRecentItems(deps.pool, filters, limit) });
+    return c.json<ItemList>({
+      items: await listRecentItems(deps.pool, c.get("userId"), filters, limit),
+    });
   });
 }
 

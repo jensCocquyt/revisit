@@ -5,9 +5,11 @@ import { findItem, insertItem } from "../src/db/items.js";
 import { processItem } from "../src/processing/process-items.js";
 import { fakeEmbed } from "./fake-embed.js";
 import { createTestPool, emptyDatabase } from "./test-database.js";
+import { createTestUser, type TestUser, testAuth, withSession } from "./test-user.js";
 
 const pool = createTestPool();
-const app = createApp({ pool, embed: fakeEmbed, processor: { wake: () => {} } });
+const app = createApp({ pool, embed: fakeEmbed, processor: { wake: () => {} }, auth: testAuth });
+let user: TestUser;
 
 const texts = {
   error:
@@ -19,8 +21,9 @@ const ids: Record<keyof typeof texts, string> = { error: "", soup: "", tax: "" }
 
 beforeAll(async () => {
   await emptyDatabase(pool);
+  user = await createTestUser(pool);
   for (const [key, text] of Object.entries(texts) as [keyof typeof texts, string][]) {
-    const item = await insertItem(pool, {
+    const item = await insertItem(pool, user.id, {
       kind: "text",
       url: null,
       title: text.split("\n")[0] ?? null,
@@ -28,7 +31,7 @@ beforeAll(async () => {
       body: text,
     });
     if (!item) throw new Error("item not inserted");
-    const detail = await findItem(pool, item.id);
+    const detail = await findItem(pool, user.id, item.id);
     if (!detail) throw new Error("item missing");
     await processItem(
       {
@@ -84,13 +87,17 @@ describe("search", () => {
   });
 
   it("rejects an empty query and an unknown kind", async () => {
-    expect((await app.request("/api/search?q=%20")).status).toBe(400);
-    expect((await app.request("/api/search?q=soup&kind=video")).status).toBe(400);
+    expect((await request("/api/search?q=%20")).status).toBe(400);
+    expect((await request("/api/search?q=soup&kind=video")).status).toBe(400);
   });
 });
 
 async function search(q: string, filters: Record<string, string> = {}): Promise<SearchResult[]> {
-  const response = await app.request(`/api/search?${new URLSearchParams({ q, ...filters })}`);
+  const response = await request(`/api/search?${new URLSearchParams({ q, ...filters })}`);
   expect(response.status).toBe(200);
   return ((await response.json()) as SearchResults).results;
+}
+
+function request(path: string) {
+  return app.request(path, withSession(user));
 }

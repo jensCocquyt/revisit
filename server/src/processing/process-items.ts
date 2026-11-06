@@ -4,7 +4,7 @@ import {
   claimNextPendingItem,
   completeItem,
   failItem,
-  findItemImage,
+  findImageToRead,
   type ReadContent,
   resetInFlightItems,
 } from "../db/items.js";
@@ -84,7 +84,7 @@ async function readContent(deps: ProcessingDeps, item: ItemDetail): Promise<Read
     case "link":
       return deps.readLink(item.url ?? "");
     case "screenshot": {
-      const image = await findItemImage(deps.pool, item.id);
+      const image = await findImageToRead(deps.pool, item.id);
       if (!image) throw new Error("the screenshot image is missing");
       return deps.readScreenshot(image);
     }

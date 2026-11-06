@@ -13,7 +13,7 @@ A custom domain, letting anyone but the owner sign in, a sign-out button, copyin
 - **Hosting:** one Lambda function (Node 24, arm64) behind a Function URL, which comes with HTTPS and needs no domain. It serves the web app and the API, and runs the processing. Every always-on option costs $12 or more a month: App Runner is closed to new customers, Fargate needs a load balancer, a virtual machine needs a public IPv4 address and a domain, and the cheapest managed Postgres on AWS is about $15.
 - **Database:** Neon free plan in London (`aws-eu-west-2`), Postgres 18 with pgvector and pg_trgm, compute fixed at 0.25 CU so a burst cannot use up the monthly hours. It sleeps after 5 idle minutes and wakes in a few hundred milliseconds. The app uses Neon's pooled URL with a 10 s connect timeout and closes its connection before each Lambda run ends, because a frozen instance keeps its connections open and may keep Neon awake; migrations use the direct URL.
 - **Images:** in S3 instead of Postgres, since Neon's free storage is 1 GB. A Lambda request is capped at 6 MB, so the browser uploads straight to S3 with a presigned POST limited to 10 MB, and the server checks the type from the file's bytes before saving the item. Images are shown through short-lived presigned links.
-- **Sign-in:** Google over OpenID Connect with `openid-client` (authorization code with PKCE). Only the owner's verified email gets in; the first sign-in creates the owner's user. A signed `HttpOnly`, `Secure`, `SameSite=Lax` session cookie lasts 30 days. Everything except `/auth/*` needs the session: pages redirect to Google, `/api` answers 401 and the web app then goes to sign-in. Requests without a session stop before they touch Neon or Bedrock, so strangers hitting the public URL cost nothing.
+- **Sign-in:** Google over OpenID Connect with `openid-client` (authorization code with PKCE). Only the owner's verified email gets in; the first sign-in creates the owner's user. A signed `HttpOnly`, `SameSite=Lax` session cookie lasts 30 days; it is `Secure` whenever `APP_URL` is https, which the Function URL always is. Everything except `/auth/*` needs the session: pages redirect to Google, `/api` answers 401 and the web app then goes to sign-in. Requests without a session stop before they touch Neon or Bedrock, so strangers hitting the public URL cost nothing.
 - **Users:** items belong to a user and every item query is scoped to the signed-in one. Letting other people sign in stays out of scope, but the owner intends to later, and then it becomes a sign-in change only. It belongs in this step because the cloud database starts empty here, so ownership lands before there is any data to fill in, and because steps 3 and 4 add queries that are then written per user from the start rather than audited afterwards.
 - **Secrets and settings:** in Parameter Store under `/revisit/`, written by hand with the AWS CLI, so secrets never enter Terraform state or the repo. Lambda reads them once per cold start; locally they come from `.env`.
 - **Infrastructure:** Terraform in `infra/bootstrap` (state bucket, deploy role) and `infra/app` (the rest), applied by the owner from the laptop. State lives in S3 with S3's own lock file; the bootstrap state moves into its own bucket after the first apply. Account-specific values stay in git-ignored files.
@@ -84,16 +84,16 @@ The AWS account stays on the Free plan for now. That plan ends on 2027-02-15 ($1
 
 ### 2a. Sign in with Google, locally
 - [ ] Google OAuth client with a localhost redirect (by hand)
-- [ ] `/auth/login`, `/auth/callback`, session cookie, owner check
-- [ ] Session required everywhere else; the web app handles 401; Vite forwards `/auth`
-- [ ] `users` table and `items.user_id`; every item query, search included, takes the user from the session; the first sign-in claims unowned items
-- [ ] `.env.example`, README, the `LISTEN_HOST` comment
+- [x] `/auth/login`, `/auth/callback`, session cookie, owner check
+- [x] Session required everywhere else; the web app handles 401; Vite forwards `/auth`
+- [x] `users` table and `items.user_id`; every item query, search included, takes the user from the session; the first sign-in claims unowned items
+- [x] `.env.example`, README, the `LISTEN_HOST` comment
 - [ ] Google settings in your own `.env` before the local instance restarts, or it turns every request away
-- [ ] Tests: sign-in and isolation, as listed under Proof
+- [x] Tests: sign-in and isolation, as listed under Proof
 
 ### 2b. Ready for Lambda
 - [ ] Old bootstrap torn down; `infra/bootstrap`; `infra/app` with the two image buckets
-- [ ] Images in S3: presigned upload, type check, presigned image links, delete; migration, which also makes `user_id` required
+- [ ] Images in S3: presigned upload, type check, presigned image links, delete; migration, which also makes `user_id` required; the first sign-in no longer claims unowned items
 - [ ] Claiming with `SKIP LOCKED` and `claimed_at`, stuck-item reset, async `wake()`
 - [ ] Lambda handler for web requests, `process` and `migrate`; settings from Parameter Store
 - [ ] README "Running it" and `.env.example`: the dev bucket and image settings
@@ -109,3 +109,7 @@ The AWS account stays on the Free plan for now. That plan ends on 2027-02-15 ($1
 ## Open questions
 
 - Claude 5.5 on Bedrock is still "not available for this account". Once granted, set `SCREENSHOT_MODEL_ID=eu.anthropic.claude-haiku-5-5` and rerun the eval.
+
+## Review
+
+- **2a:** tests run sign-in against a faked Google. The real server, started on a scratch database, reaches Google's sign-in page with PKCE, state and nonce; the full round trip waits for the OAuth client. With search scoped per user, the eval still finds all 26 queries at rank 1. Sign-in first moves to `APP_URL`'s own address, because a sign-in started on 127.0.0.1 would lose its cookie when Google returns to localhost.

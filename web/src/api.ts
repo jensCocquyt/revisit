@@ -79,6 +79,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 async function send(path: string, init?: RequestInit): Promise<Response> {
   const response = await fetch(path, init);
+  if (response.status === 401) {
+    window.location.assign("/auth/login");
+    throw new Error("signing in again");
+  }
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as ErrorResponse | null;
     throw new Error(body?.error ?? `${response.status} ${response.statusText}`);
